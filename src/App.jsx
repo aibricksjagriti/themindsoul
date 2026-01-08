@@ -10,7 +10,6 @@ import CounsellorProfileUpdate from "./components/Profile/CounsellorProfileUpdat
 import Counsellors from "./components/Counsellor/Counsellors.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import BookingPage from "./components/Booking/BookingPage.jsx";
-import OtpPage from "./components/Counsellor/OtpPage.jsx";
 import ProtectedCounsellorRoute from "./routes/ProtectedCounsellorRoute.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
 import Policy from "./pages/Policy.jsx";
@@ -37,20 +36,20 @@ function App() {
         }
       />
       <Route path="/counsellor-login" element={<CounsellorLoginRoute />} />
-      <Route path="/otp" element={<OtpPage />} />
-      <Route
-        path="/counsellors"
-        element={
-          // <ProtectedRoute>
-          <Counsellors />
-          // </ProtectedRoute>
-        }
-      />
+
+      <Route path="/counsellors" element={<Counsellors />} />
       <Route path="/corporate-wellness" element={<CorporateWellness />} />
       <Route path="/school-workshop" element={<SchoolWorkshop />} />
       <Route path="/booking" element={<BookingPage />} />
       <Route path="/privacy-policy" element={<Policy />} />
-      <Route path="/user-dashboard" element={<UserDashboard />} />
+      <Route
+        path="/user-dashboard"
+        element={
+          <ProtectedRoute>
+            <UserDashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/counsellor-dashboard"
         element={

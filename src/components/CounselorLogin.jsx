@@ -257,7 +257,7 @@ export default function CounselorLogin({ isOpen, onClose, onOtpOpen }) {
               disabled={loading}
               className={`w-full mt-6 py-3 rounded-lg font-medium transition ${
                 loading
-                  ? "bg-gray-400 cursor-not-allowed"
+                  ? "bg-accent cursor-not-allowed"
                   : "bg-primary hover:bg-accent text-white"
               }`}
             >
@@ -267,11 +267,11 @@ export default function CounselorLogin({ isOpen, onClose, onOtpOpen }) {
 
           <p className="text-sm text-gray-500 text-center mt-4">
             By continuing, you agree to MindSoul’s{" "}
-            <a href="#" className="text-indigo-600 underline">
+            <a href="#" className="text-primary underline">
               Terms
             </a>{" "}
             and{" "}
-            <a href="#" className="text-indigo-600 underline">
+            <a href="#" className="text-primary underline">
               Privacy Policy
             </a>
             .
