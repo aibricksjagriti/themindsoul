@@ -139,10 +139,10 @@ export default function Policy() {
             <p>
               <strong>Email:</strong>{" "}
               <a
-                href="mailto:dhotrerutam@gmail.com"
+                href="mailto:themindsoul.in@gmail.com "
                 className="text-[#4b2aad] underline"
               >
-                dhotrerutam@gmail.com
+                themindsoul.in@gmail.com
               </a>
             </p>
             <p>

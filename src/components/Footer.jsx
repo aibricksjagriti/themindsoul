@@ -79,8 +79,8 @@ export default function Footer() {
 
             <ul className="space-y-2 text-md text-gray-400">
               <p>
-                <a href="mailto: rutambara123@gmail.com">
-                  Mail us: rutambara123@gmail.com
+                <a href="mailto: themindsoul.in@gmail.com">
+                  Mail us: themindsoul.in@gmail.com
                 </a>
               </p>
               <p>
