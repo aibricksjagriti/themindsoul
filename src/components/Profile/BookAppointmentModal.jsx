@@ -440,6 +440,8 @@ export default function BookAppointmentModal({
   const [appointmentData, setAppointmentData] = useState(null);
   const [showFinalLoader, setShowFinalLoader] = useState(false);
 
+  const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
   /* -------------------- Generate Next 14 Days -------------------- */
   const generateNextDays = (count = 14) => {
     const days = [];
@@ -495,18 +497,18 @@ export default function BookAppointmentModal({
 
       await fetch(
         `${BASE_URL}/timeslots/counsellor/${counsellorId}/refresh?date=${date}`,
-        { method: "POST", credentials: "include" }
+        { method: "POST", credentials: "include" },
       );
 
       const resAvail = await fetch(
         `${BASE_URL}/timeslots/counsellor/${counsellorId}/slots?date=${date}`,
-        { credentials: "include" }
+        { credentials: "include" },
       );
       const availData = await resAvail.json();
 
       const resBooked = await fetch(
         `${BASE_URL}/timeslots/counsellor/${counsellorId}/booked?date=${date}`,
-        { credentials: "include" }
+        { credentials: "include" },
       );
       const bookedData = await resBooked.json();
 
@@ -599,7 +601,7 @@ export default function BookAppointmentModal({
       if (!loaded) throw new Error("Razorpay SDK failed to load");
 
       new window.Razorpay({
-        key: "rzp_test_Rv3rhMFLbflgAX",
+        key: razorpayKey,
         amount: orderData.order.amount,
         currency: "INR",
         name: "MindSoul Counselling",
@@ -665,8 +667,8 @@ export default function BookAppointmentModal({
             slot.isBooked
               ? "bg-red-100 text-red-500 cursor-not-allowed"
               : isPast
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "hover:border-accent"
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "hover:border-accent"
           }
           ${isSelected ? "bg-primary text-white" : ""}
           
