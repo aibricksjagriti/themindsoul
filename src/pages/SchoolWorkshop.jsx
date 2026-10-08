@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 const SectionTitle = ({ title, subtitle }) => (
   <div className="text-center mb-12">
@@ -27,7 +28,7 @@ const WorkshopCard = ({ title, items }) => (
 
 export default function SchoolWorkshop() {
   return (
-    <div className="bg-gray-50 mt-30">
+    <div className="program-page bg-gray-50">
       {/* HERO */}
       <section className="bg-gradient-to-r from-primary to-blue-100 py-24">
         <div className="max-w-7xl mx-auto px-6 text-center">
@@ -38,6 +39,7 @@ export default function SchoolWorkshop() {
             Age-appropriate emotional wellness programs designed to nurture
             confidence, resilience, empathy, and mental well-being.
           </p>
+          <Link className="button button-primary mt-8" to="/contacts">Plan a school workshop</Link>
         </div>
       </section>
 

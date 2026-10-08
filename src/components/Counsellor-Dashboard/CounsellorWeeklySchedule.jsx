@@ -1,7 +1,8 @@
+import { API_BASE_URL } from "../../api/apiConfig.js";
 import { useEffect, useState } from "react";
 
 const BASE_URL =
-  "https://mindsoul-backend-772700176760.asia-south1.run.app/api";
+  `${API_BASE_URL}/api`;
 
 const DAYS = [
   "Monday",
@@ -30,6 +31,8 @@ export default function CounsellorWeeklySchedule() {
   const [schedule, setSchedule] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [error, setError] = useState("");
 
   /* -------------------------------
      GET counsellorId (OTP login)
@@ -37,9 +40,6 @@ export default function CounsellorWeeklySchedule() {
   useEffect(() => {
     const storedCounsellorId = localStorage.getItem("counsellorId");
     const isLoggedIn = localStorage.getItem("isCounsellorLoggedIn");
-
-    console.log("Stored counsellorId:", storedCounsellorId);
-    console.log("Is counsellor logged in:", isLoggedIn);
 
     if (storedCounsellorId && isLoggedIn === "true") {
       setCounsellorId(storedCounsellorId);
@@ -57,16 +57,12 @@ export default function CounsellorWeeklySchedule() {
 
     async function fetchSchedule() {
       try {
-        console.log("Fetching schedule for:", counsellorId);
 
         const res = await fetch(`${BASE_URL}/schedule/${counsellorId}`, {
           credentials: "include",
         });
 
-        console.log("GET status:", res.status);
-
         const data = await res.json();
-        console.log("GET response data:", data);
 
         if (!res.ok) {
           throw new Error(data?.message || "Unauthorized");
@@ -119,10 +115,10 @@ export default function CounsellorWeeklySchedule() {
   async function saveSchedule() {
     if (!counsellorId) return;
 
-    setSaving(true);
+    if (saving) return;
+    setSaving(true); setFeedback(""); setError("");
 
     try {
-      console.log("Saving schedule:", schedule);
 
       const res = await fetch(`${BASE_URL}/schedule/${counsellorId}`, {
         method: "PATCH",
@@ -133,19 +129,16 @@ export default function CounsellorWeeklySchedule() {
         body: JSON.stringify({ weekly: schedule }),
       });
 
-      console.log("PATCH status:", res.status);
-
       const data = await res.json();
-      console.log("PATCH response data:", data);
 
       if (!res.ok) {
         throw new Error(data?.message || "Unauthorized");
       }
 
-      alert("Weekly schedule updated");
+      setFeedback("Your recurring weekly availability is saved and upcoming slots have been refreshed.");
     } catch (err) {
       console.error("Failed to save schedule:", err.message);
-      alert("Session expired. Please login again.");
+      setError(err.message || "We couldn't save your schedule. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -155,16 +148,9 @@ export default function CounsellorWeeklySchedule() {
 
   return (
     <div style={{ maxWidth: "1100px", margin: "auto" }} className="font-body">
-      <p className="text-md font-body">
-        <span className="text-red-600 font-bold text-lg">Important Note:</span>
-        <br /> To ensure your availability is visible to users, it is{" "}
-        <strong>
-          mandatory to update your weekly schedule every weekend.
-        </strong>{" "}
-        The schedule you set will be used to display your availability for the
-        upcoming week to users. If the weekly schedule is not updated, your next
-        week’s slots may not appear for booking.
-      </p>
+      <p className="text-sm text-gray-500">This schedule repeats each week. Update it when your availability changes; there is no need to save it every weekend. Existing booked sessions are preserved.</p>
+      {feedback && <p className="form-success mt-4" role="status">{feedback}</p>}
+      {error && <p className="form-error mt-4" role="alert">{error}</p>}
       <h2 className="text-lg mt-8">Weekly Availability</h2>
 
       <div

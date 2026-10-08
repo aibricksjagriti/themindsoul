@@ -1,194 +1,29 @@
-import React, { useState } from "react";
+import { API_BASE_URL } from "../../api/apiConfig.js";
+import { useState } from "react";
+import { ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { fetchJson } from "../../api/bookingStatus";
 
+const initial = { firstName: "", lastName: "", email: "", phone: "", company: "", jobTitle: "", country: "India", employees: "", allowCommunication: false };
 export default function QuoteForm() {
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    company: "",
-    jobTitle: "",
-    country: "",
-    employees: "",
-    allowCommunication: false,
-  });
-
+  const [form, setForm] = useState(initial);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-
-  // Handle Input Change
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const change = (event) => { const {name,value,type,checked} = event.target; setForm((old) => ({ ...old, [name]: type === "checkbox" ? checked : value })); };
+  const submit = async (event) => {
+    event.preventDefault(); if (loading) return;
+    setLoading(true); setError("");
+    try { await fetchJson(`${API_BASE_URL}/api/quote`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }); setSuccess(true); setForm(initial); }
+    catch (error) { setError(error.message || "We couldn't submit your enquiry. Please try again."); }
+    finally { setLoading(false); }
   };
-
-  // Handle Submit
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const res = await fetch(
-        "https://mindsoul-backend-772700176760.asia-south1.run.app/api/quote",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      const result = await res.json();
-
-      if (res.ok) {
-        setMessage("Quote request submitted successfully!");
-        setFormData({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          company: "",
-          jobTitle: "",
-          country: "",
-          employees: "",
-          allowCommunication: false,
-        });
-      } else {
-        setMessage(result.message || "Something went wrong!");
-      }
-    } catch (error) {
-      console.error(error);
-      setMessage("Server error, please try again!");
-    }
-
-    setLoading(false);
-  };
-
-  return (
-    <>
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            className="form-input"
-            placeholder="First Name*"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            className="form-input"
-            placeholder="Last Name*"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            className="form-input"
-            placeholder="Business Email*"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            type="email"
-          />
-
-          <input
-            className="form-input"
-            placeholder="Company*"
-            name="company"
-            value={formData.company}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            className="form-input"
-            placeholder="Job Title*"
-            name="jobTitle"
-            value={formData.jobTitle}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            className="form-input"
-            placeholder="Phone*"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            required
-          />
-
-          {/* Country Dropdown */}
-          <select
-            name="country"
-            className="form-input"
-            value={formData.country}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Country</option>
-            <option value="India">India</option>
-            <option value="USA">USA</option>
-            <option value="Canada">Canada</option>
-          </select>
-
-          {/* Employees Dropdown */}
-          <select
-            name="employees"
-            className="form-input"
-            value={formData.employees}
-            onChange={handleChange}
-            required
-          >
-            <option value="">No. of Employees</option>
-            <option value="1-50">1 - 50</option>
-            <option value="50-200">50 - 200</option>
-            <option value="200-1000">200 - 1000</option>
-            <option value="1000+">1000+</option>
-          </select>
-        </div>
-
-        {/* Checkbox */}
-        <label className="flex items-center gap-2 mt-4 text-gray-700">
-          <input
-            type="checkbox"
-            name="allowCommunication"
-            checked={formData.allowCommunication}
-            onChange={handleChange}
-            className="accent-teal-600"
-          />
-          MindSoul may send me updates and communications.
-        </label>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full mt-6 bg-primary hover:bg-primary text-white hover:text-black font-semibold py-3 rounded-xl transition text-lg cursor-pointer"
-        >
-          {loading ? "Submitting..." : "Submit"}
-        </button>
-
-        {message && (
-          <p className="text-sm mt-3 text-center text-green-600">{message}</p>
-        )}
-
-        <p className="text-xs text-gray-500 mt-4 leading-relaxed">
-          By submitting, you agree that we may store and use your personal
-          information to contact you regarding services. View our Privacy Policy
-          for more.
-        </p>
-      </form>
-    </>
-  );
+  if (success) return <div className="text-center py-10" role="status"><CheckCircle2 size={42} className="mx-auto text-primary mb-5" /><h3 className="text-2xl font-heading">Thank you for reaching out.</h3><p className="text-sm text-gray-500 mt-4">We've received your enquiry. Our team will follow up with you.</p><button onClick={() => setSuccess(false)} className="button button-secondary mt-6">Send another enquiry</button></div>;
+  return <form onSubmit={submit} className="form-stack">
+    <div className="grid sm:grid-cols-2 gap-4">{[["firstName","First name","text","given-name"],["lastName","Last name","text","family-name"],["email","Work email","email","email"],["phone","Phone number","tel","tel"],["company","School / organisation","text","organization"],["jobTitle","Your role","text","organization-title"]].map(([name,label,type,autoComplete]) => <label key={name}><span className="field-label">{label} <span aria-hidden="true">*</span></span><input className="field-input" name={name} type={type} autoComplete={autoComplete} required value={form[name]} onChange={change} maxLength={300} /></label>)}</div>
+    <div className="grid sm:grid-cols-2 gap-4"><label><span className="field-label">Country *</span><select className="field-input" name="country" required value={form.country} onChange={change}>{["India","United States","United Kingdom","Canada","Australia","Other"].map((country) => <option key={country}>{country}</option>)}</select></label><label><span className="field-label">Community size *</span><select className="field-input" name="employees" required value={form.employees} onChange={change}><option value="">Select a range</option>{["1-50","51-200","201-1,000","1,000+"].map((size) => <option key={size}>{size}</option>)}</select></label></div>
+    <label className="flex gap-3 text-xs text-gray-500 items-start"><input type="checkbox" name="allowCommunication" checked={form.allowCommunication} onChange={change} className="mt-0.5 shrink-0" />I'd like to receive updates about MindSoul's programs and services.</label>
+    {error && <p role="alert" className="form-error">{error}</p>}
+    <button className="button button-primary w-full" type="submit" disabled={loading}>{loading ? "Sending your enquiry..." : "Send enquiry"}<ArrowUpRight size={17} /></button><p className="text-xs text-gray-500">We'll use your details to respond to your enquiry. Read our <Link to="/privacy-policy" className="underline underline-offset-2">privacy policy</Link>.</p>
+  </form>;
 }

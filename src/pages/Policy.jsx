@@ -2,7 +2,7 @@ import React from "react";
 
 export default function Policy() {
   return (
-    <section className="bg-[#f9f8ff] min-h-screen py-16 px-4 mt-30">
+    <section className="policy-page min-h-screen py-16 px-4">
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-md p-6 md:p-10">
         {/* PAGE HEADER */}
         <header className="mb-10 text-center">

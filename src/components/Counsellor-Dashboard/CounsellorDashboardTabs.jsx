@@ -1,8 +1,10 @@
+import { API_BASE_URL } from "../../api/apiConfig.js";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import CounsellorAppointments from "./CounsellorAppointement";
 import CounsellorWeeklySchedule from "./CounsellorWeeklySchedule";
 import CounsellorTransactionsTab from "./CounsellorTransactionTab";
+import StatePanel from "../ui/StatePanel";
 
 const TABS = {
   INFO: "info",
@@ -14,34 +16,41 @@ const TABS = {
 export default function CounsellorDashboardTabs() {
   const [activeTab, setActiveTab] = useState(TABS.INFO);
   const [counsellorData, setCounsellorData] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+  const [attempt, setAttempt] = useState(0);
   const counsellorId = localStorage.getItem("counsellorId");
 
   useEffect(() => {
     if (!counsellorId) return;
 
     const fetchCounsellor = async () => {
+      setProfileLoading(true); setProfileError("");
       try {
         const res = await axios.get(
-          `https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/${counsellorId}`,
+          `${API_BASE_URL}/api/counsellor/${counsellorId}`,
           { withCredentials: true }
         );
+        if (!res.data.counsellor) throw new Error("Profile unavailable");
         setCounsellorData(res.data.counsellor);
       } catch (err) {
-        console.error(err);
+        setProfileError(err.response?.data?.message || "We couldn't load your professional profile.");
+      } finally {
+        setProfileLoading(false);
       }
     };
 
     fetchCounsellor();
-  }, [counsellorId]);
+  }, [counsellorId,attempt]);
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
   };
 
   return (
-    <div className="max-w-7xl mx-auto mt-10 px-4">
+    <div className="w-full">
       {/* Tabs */}
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="dashboard-tabs">
         {[
           { key: TABS.INFO, label: "My Info" },
           { key: TABS.APPOINTMENTS, label: "Appointments" },
@@ -50,6 +59,7 @@ export default function CounsellorDashboardTabs() {
         ].map((tab) => (
           <button
             key={tab.key}
+            aria-pressed={activeTab === tab.key}
             onClick={() => handleTabClick(tab.key)}
             className={`px-5 py-2 text-md rounded-lg font-medium transition
               ${
@@ -65,6 +75,8 @@ export default function CounsellorDashboardTabs() {
 
       {/* TAB CONTENT */}
       <div className="mt-8">
+        {activeTab === TABS.INFO && profileLoading && <StatePanel loading title="Loading your professional profile" />}
+        {activeTab === TABS.INFO && profileError && <StatePanel title="We couldn't load your profile" description={profileError} onRetry={() => setAttempt((value) => value + 1)} />}
         {activeTab === TABS.INFO && counsellorData && (
           <div className="bg-white rounded-2xl shadow-md p-6 grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
             {/* LEFT COLUMN */}
@@ -189,15 +201,15 @@ function Section({ title, children }) {
   );
 }
 
-function TagSection({ title, items, color }) {
+function TagSection({ title, items }) {
   return (
     <div>
       <h3 className="font-semibold text-gray-700 mb-2">{title}</h3>
       <div className="flex flex-wrap gap-2">
-        {items.map((item, idx) => (
+        {(Array.isArray(items) ? items : []).map((item, idx) => (
           <span
             key={idx}
-            className={`bg-${color}-100 text-${color}-600 px-3 py-1 rounded-full text-md`}
+            className="profile-tag"
           >
             {item}
           </span>

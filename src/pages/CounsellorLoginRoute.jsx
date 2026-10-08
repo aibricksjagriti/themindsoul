@@ -1,65 +1,18 @@
-// import React, { useState } from "react";
-// import CounselorLogin from "../components/CounselorLogin";
-// import OtpPage from "../components/Counsellor/OtpPage";
-
-// export default function CounsellorLoginRoute() {
-//   const [openOtp, setOpenOtp] = useState(false);
-//   const [showLogin, setShowLogin] = useState(true);
-
-//   return (
-//     <div className="h-[80vh]">
-//       {showLogin && (
-//         <CounselorLogin
-//           isOpen={true}
-//           onClose={() => setShowLogin(false)} // DO NOT navigate
-//           onOtpOpen={() => setOpenOtp(true)} // OTP opens safely
-//         />
-//       )}
-
-//       {openOtp && (
-//         <OtpPage isOpen={openOtp} onClose={() => setOpenOtp(false)} />
-//       )}
-//     </div>
-//   );
-// }
-
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import CounselorLogin from "../components/CounselorLogin";
 import OtpPage from "../components/Counsellor/OtpPage";
+import { useCounsellorSession } from "../hooks/useCounsellorSession";
+import PageHeading from "../components/ui/PageHeading";
+import StatePanel from "../components/ui/StatePanel";
 
 export default function CounsellorLoginRoute() {
-  const navigate = useNavigate();
-  const [openOtp, setOpenOtp] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-
-  useEffect(() => {
-    const role = localStorage.getItem("role");
-    // const hasToken = document.cookie.includes("mindsoul_token");
-
-    // ✅ HARD BLOCK LOGIN PAGE IF ALREADY LOGGED IN
-    if (role === "counsellor") {
-      navigate("/counsellor-dashboard", { replace: true });
-      return;
-    }
-
-    // open login modal ONLY if not logged in
-    setShowLogin(true);
-  }, [navigate]);
-
-  return (
-    <div className="h-[80vh]">
-      {showLogin && (
-        <CounselorLogin
-          isOpen={true}
-          onClose={() => setShowLogin(false)}
-          onOtpOpen={() => setOpenOtp(true)}
-        />
-      )}
-
-      {openOtp && (
-        <OtpPage isOpen={openOtp} onClose={() => setOpenOtp(false)} />
-      )}
-    </div>
-  );
+  const { loading, session, error, retry } = useCounsellorSession();
+  const [openOtp, setOpenOtp] = useState(false); const [showLogin, setShowLogin] = useState(true);
+  if (session) return <Navigate to="/counsellor-dashboard" replace />;
+  return <div><PageHeading eyebrow="For our counsellors" title="A space to care. A place to connect." description="Manage your profile, availability, and appointments, all in one thoughtful space." />
+    <div className="container pb-20">{loading ? <StatePanel loading title="Checking your session" /> : error ? <StatePanel title="We couldn't verify your session" description={error} onRetry={retry} /> : <div className="surface text-center py-14"><h2 className="text-3xl">Welcome to your counsellor space.</h2><p className="page-description mx-auto mb-6">Sign in with your email to manage your care schedule.</p><button className="button button-primary" onClick={() => setShowLogin(true)}>Counsellor sign in</button></div>}</div>
+    {!loading && !error && showLogin && <CounselorLogin isOpen onClose={() => setShowLogin(false)} onOtpOpen={() => setOpenOtp(true)} />}
+    {openOtp && <OtpPage onClose={() => setOpenOtp(false)} />}
+  </div>;
 }

@@ -309,13 +309,6 @@ export default function AppointmentModal({ onClose }) {
     setError("");
   }
 
-  async function refreshSlotsForDate(date) {
-    await fetch(
-      `${BASE_URL}/timeslots/counsellor/${counsellorId}/refresh?date=${date}`,
-      { method: "POST" }
-    );
-  }
-
   async function fetchAvailableSlots(date) {
     const res = await fetch(
       `${BASE_URL}/timeslots/counsellor/${counsellorId}/slots?date=${date}`
@@ -337,7 +330,6 @@ export default function AppointmentModal({ onClose }) {
     if (!weeklySchedule) return;
 
     async function loadSlots() {
-      await refreshSlotsForDate(selectedDate);
       const available = await fetchAvailableSlots(selectedDate);
 
       const res = await fetch(

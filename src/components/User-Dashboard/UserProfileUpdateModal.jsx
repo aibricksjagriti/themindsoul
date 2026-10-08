@@ -1,221 +1,34 @@
+import { API_BASE_URL } from "../../api/apiConfig.js";
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { X } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { fetchJson } from "../../api/bookingStatus";
+import ModalFrame from "../ui/ModalFrame";
 
-const API_BASE =
-  "https://mindsoul-backend-772700176760.asia-south1.run.app/api/users";
-
+const BASE = `${API_BASE_URL}/api/users`;
+const empty = { age: "", gender: "", phone: "", medications: "", medicalHistory: "" };
+const text = (value) => Array.isArray(value) ? value.filter((item) => typeof item === "string").join(", ") : typeof value === "string" ? value : "";
 export default function UserProfileUpdateModal({ isOpen, onClose }) {
-  const [formData, setFormData] = useState({
-    age: "",
-    gender: "",
-    phone: "",
-    medications: "",
-    medicalHistory: "",
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
+  const [form, setForm] = useState(empty); const [loading, setLoading] = useState(false); const [fetching, setFetching] = useState(false); const [error, setError] = useState(""); const [saved, setSaved] = useState(false);
   const token = localStorage.getItem("token");
-
-  /* ================= FETCH EXISTING PROFILE ================= */
   useEffect(() => {
     if (!isOpen) return;
-
-    const fetchProfile = async () => {
-      setFetching(true);
-      setError("");
-
-      try {
-        const res = await axios.get(`${API_BASE}/user-profile`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = res.data.data;
-
-        setFormData({
-          age: data?.age || "",
-          gender: data?.gender || "",
-          phone: data?.phone || "",
-          medications: Array.isArray(data?.medications)
-            ? data.medications.join(", ")
-            : "",
-          medicalHistory: Array.isArray(data?.medicalHistory)
-            ? data.medicalHistory.join(", ")
-            : "",
-        });
-      } catch (err) {
-        console.error("Fetch profile error:", err);
-        setError("Failed to load profile data");
-      } finally {
-        setFetching(false);
-      }
-    };
-
-    fetchProfile();
-  }, [isOpen, token]);
-
-  /* ================= HANDLE CHANGE ================= */
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const controller = new AbortController(); setFetching(true); setError(""); setSaved(false);
+    fetchJson(`${BASE}/user-profile`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }).then(({data}) => { if (!controller.signal.aborted) setForm({ age: data?.age || "", gender: data?.gender || "", phone: data?.phone || "", medications: text(data?.medications), medicalHistory: text(data?.medicalHistory) }); }).catch((error) => { if (!controller.signal.aborted) setError(error.message || "Could not load your details"); }).finally(() => { if (!controller.signal.aborted) setFetching(false); });
+    return () => controller.abort();
+  }, [isOpen,token]);
+  const change = (event) => setForm((old) => ({ ...old, [event.target.name]: event.target.value }));
+  const submit = async (event) => {
+    event.preventDefault(); if (loading) return; setLoading(true); setError("");
+    try { await fetchJson(`${BASE}/update-profile`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...form, medications: form.medications.split(",").map((value) => value.trim()).filter(Boolean), medicalHistory: form.medicalHistory.split(",").map((value) => value.trim()).filter(Boolean) }) }); setSaved(true); window.dispatchEvent(new Event("mindsoul-profile-updated")); }
+    catch (error) { setError(error.message || "We couldn't save your details"); }
+    finally { setLoading(false); }
   };
-
-  /* ================= SUBMIT ================= */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const payload = {
-        age: formData.age,
-        gender: formData.gender,
-        phone: formData.phone,
-        medications: formData.medications
-          ? formData.medications.split(",").map((m) => m.trim())
-          : [],
-        medicalHistory: formData.medicalHistory
-          ? formData.medicalHistory.split(",").map((m) => m.trim())
-          : [],
-      };
-
-      await axios.patch(`${API_BASE}/update-profile`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      setSuccess("Profile updated successfully");
-
-      setTimeout(() => {
-        onClose();
-      }, 1200);
-    } catch (err) {
-      console.error("Update profile error:", err);
-      setError(err.response?.data?.message || "Profile update failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-light w-full max-w-lg rounded-2xl shadow-xl relative">
-        {/* HEADER */}
-        <div className="flex justify-between items-center p-5 ">
-          <h2 className="text-2xl font-semibold font-body">Update Profile</h2>
-          <button onClick={onClose}>
-            <X size={22} />
-          </button>
-        </div>
-
-        {/* BODY */}
-        <div className="p-5">
-          {fetching ? (
-            <p className="text-center font-medium">Loading profile...</p>
-          ) : (
-            <>
-              {error && (
-                <p className="mb-3 text-red-500 text-center">{error}</p>
-              )}
-              {success && (
-                <p className="mb-3 text-green-600 text-center">{success}</p>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4 font-body">
-                {/* AGE */}
-                <div>
-                  <label className="text-md font-medium">Age *</label>
-                  <input
-                    type="number"
-                    name="age"
-                    value={formData.age}
-                    onChange={handleChange}
-                    required
-                    className="w-full mt-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-accent"
-                  />
-                </div>
-
-                {/* GENDER */}
-                <div>
-                  <label className="text-md font-medium">Gender *</label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    required
-                    className="w-full mt-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-accent"
-                  >
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                {/* PHONE */}
-                <div>
-                  <label className="text-md font-medium">Phone *</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                    className="w-full mt-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-accent"
-                  />
-                </div>
-
-                {/* MEDICATIONS */}
-                <div>
-                  <label className="text-md font-medium">
-                    Medications (comma separated)
-                  </label>
-                  <textarea
-                    name="medications"
-                    value={formData.medications}
-                    onChange={handleChange}
-                    rows={2}
-                    className="w-full mt-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-accent"
-                  />
-                </div>
-
-                {/* MEDICAL HISTORY */}
-                <div>
-                  <label className="text-md font-medium">
-                    Medical History (comma separated)
-                  </label>
-                  <textarea
-                    name="medicalHistory"
-                    value={formData.medicalHistory}
-                    onChange={handleChange}
-                    rows={2}
-                    className="w-full mt-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-accent"
-                  />
-                </div>
-
-                {/* ACTIONS */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-primary text-white py-2 rounded-lg font-semibold hover:bg-accent transition disabled:opacity-60 text-lg"
-                >
-                  {loading ? "Updating..." : "Update Profile"}
-                </button>
-              </form>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return <ModalFrame isOpen={isOpen} onClose={onClose} closeDisabled={loading} title={saved ? "Your details are updated." : "A little about you."} description="Share the details that help us support you. Medical information is optional.">
+    {saved ? <div className="text-center"><CheckCircle2 className="text-primary mx-auto mb-5" size={34} /><button className="button button-primary w-full" onClick={onClose}>Done</button></div> : fetching ? <p role="status" className="text-sm text-gray-500">Loading your details...</p> : <form className="form-stack" onSubmit={submit}>
+      {error && <p className="form-error" role="alert">{error}</p>}<div className="grid grid-cols-2 gap-4"><label><span className="field-label">Age *</span><input type="number" name="age" min={1} max={120} required className="field-input" value={form.age} onChange={change} /></label><label><span className="field-label">Gender *</span><select name="gender" required className="field-input" value={form.gender} onChange={change}><option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></label></div>
+      <label><span className="field-label">Phone number *</span><input type="tel" name="phone" autoComplete="tel-national" inputMode="numeric" pattern="[0-9]{10}" maxLength={10} required className="field-input" value={form.phone} onChange={change} placeholder="10-digit phone number" /></label>
+      <label><span className="field-label">Medications <span className="text-gray-400 font-normal">(optional)</span></span><textarea name="medications" rows={2} className="field-input" value={form.medications} onChange={change} placeholder="Separate medications with a comma" /></label>
+      <label><span className="field-label">Medical history <span className="text-gray-400 font-normal">(optional)</span></span><textarea name="medicalHistory" rows={2} className="field-input" value={form.medicalHistory} onChange={change} placeholder="Anything you'd like your care team to know" /></label><button className="button button-primary w-full" disabled={loading}>{loading ? "Saving..." : "Save my details"}</button>
+    </form>}
+  </ModalFrame>;
 }

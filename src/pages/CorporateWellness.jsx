@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   Brain,
   Users,
@@ -23,7 +24,7 @@ const stagger = {
 
 export default function CorporateWellness() {
   return (
-    <div className="text-gray-800 overflow-hidden mt-30">
+    <div className="program-page text-gray-800 overflow-hidden">
       {/* HERO */}
       <section className="relative bg-gradient-to-br from-primary via-accent to-[#5d799d] text-white">
         <div className="absolute inset-0 bg-black/20" />
@@ -45,6 +46,8 @@ export default function CorporateWellness() {
           <p className="mt-6 text-lg md:text-xl text-white/90 max-w-3xl mx-auto">
             Building emotionally intelligent, resilient & high-performing teams
           </p>
+
+          <Link className="button button-primary mt-8" to="/contacts">Plan a workplace program</Link>
 
           {/* <motion.a
             whileHover={{ scale: 1.08 }}

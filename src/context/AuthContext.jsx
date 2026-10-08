@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../api/apiConfig.js";
 // // src/context/AuthContext.js
 // import React, { createContext, useState, useEffect, useContext } from "react";
 
@@ -159,7 +160,8 @@
 //   return useContext(AuthContext);
 // }
 
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
+import { fetchJson } from "../api/bookingStatus";
 
 export const AuthContext = createContext();
 
@@ -198,35 +200,58 @@ export function AuthProvider({ children }) {
 
     setUser(userData);
     setToken(tokenValue);
-    // setRole(userRole);
+    setRole(userRole);
 
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("token", tokenValue);
-    // localStorage.setItem("role", userRole);
+    localStorage.setItem("role", userRole);
+    localStorage.removeItem("isCounsellorLoggedIn");
+    localStorage.removeItem("counsellorId");
+    localStorage.removeItem("counsellorEmail");
   };
 
   // ------------------------------------------
   // USER LOGOUT (LOCAL STORAGE)
   // ------------------------------------------
-  const logoutUser = () => {
+  const logoutUser = async () => {
+    await fetchJson(`${API_BASE_URL}/api/auth/logout`, {
+      method: "POST", credentials: "include",
+    });
     setUser(null);
     setToken(null);
-    // setRole(null);
+    setRole(null);
 
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    // localStorage.removeItem("role");
+    localStorage.removeItem("role");
     localStorage.removeItem("isUserLoggedIn");
+    localStorage.removeItem("isCounsellorLoggedIn");
+    localStorage.removeItem("counsellorId");
+    localStorage.removeItem("counsellorEmail");
   };
 
   // ------------------------------------------
   // COUNSELLOR LOGOUT (ROLE ONLY)
   // ------------------------------------------
-  const logoutCounsellor = () => {
-    setRole(null);
-    localStorage.removeItem("role");
-    // ❌ DO NOT touch user or token
-  };
+  const logoutCounsellor = logoutUser;
+
+  const loginCounsellor = useCallback((counsellorId) => {
+    setUser(null);
+    setToken(null);
+    setRole("counsellor");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("isUserLoggedIn");
+    localStorage.setItem("counsellorId", counsellorId);
+    localStorage.setItem("role", "counsellor");
+    localStorage.setItem("isCounsellorLoggedIn", "true");
+  }, []);
+
+  const clearCounsellorSession = useCallback(() => {
+    setRole((current) => current === "counsellor" ? null : current);
+    for (const key of ["counsellorId", "counsellorEmail", "isCounsellorLoggedIn"]) localStorage.removeItem(key);
+    if (localStorage.getItem("role") === "counsellor") localStorage.removeItem("role");
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -235,6 +260,8 @@ export function AuthProvider({ children }) {
         token,
         role,
         login,
+        loginCounsellor,
+        clearCounsellorSession,
         logoutUser,
         logoutCounsellor,
         loading,

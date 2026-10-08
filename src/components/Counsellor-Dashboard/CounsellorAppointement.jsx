@@ -1,10 +1,11 @@
+import { API_BASE_URL } from "../../api/apiConfig.js";
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
+import StatePanel from "../ui/StatePanel";
 import CounsellorAppointmentCard from "./CounsellorAppointmentCard";
 
 export default function CounsellorAppointments() {
-  const { token } = useAuth();
+  const [error, setError] = useState("");
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -12,7 +13,7 @@ export default function CounsellorAppointments() {
     const fetchAppointments = async () => {
       try {
         const res = await axios.get(
-          "https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/counsellor-appointments",
+          `${API_BASE_URL}/api/counsellor/counsellor-appointments`,
           {
             withCredentials: true, // ✅ REQUIRED
           }
@@ -20,6 +21,7 @@ export default function CounsellorAppointments() {
 
         setAppointments(res.data?.data || []);
       } catch (error) {
+        setError("We couldn't load your appointments. Please try again later.");
         console.error(
           "Failed to fetch appointments",
           error.response?.data || error
@@ -59,11 +61,13 @@ export default function CounsellorAppointments() {
   }, [appointments]);
 
   if (loading) {
-    return <p className="text-center text-gray-500">Loading appointments...</p>;
+    return <StatePanel loading title="Loading your care schedule" />;
   }
 
+  if (error) return <StatePanel title="Your sessions are temporarily unavailable" description={error} />;
+
   if (!appointments.length) {
-    return <p className="text-center text-gray-500">No appointments found</p>;
+    return <StatePanel title="A little space in your schedule." description="Your client appointments will appear here as they are booked." />;
   }
 
   return (
@@ -77,6 +81,8 @@ export default function CounsellorAppointments() {
           timeSlot={item.timeSlot}
           meetingLink={item.startUrl}
           status={item.status}
+          bookingType={item.bookingType}
+          appointmentId={item.id}
           studentEmail={item.studentEmail}
         />
       ))}

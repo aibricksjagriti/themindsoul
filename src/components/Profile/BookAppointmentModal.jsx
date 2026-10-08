@@ -1,423 +1,17 @@
-// NEW FINAL CODE:
-// import React, { useState, useEffect } from "react";
-// import { FiX } from "react-icons/fi";
-// import AppointmentConfirmationModal from "./AppointmentConfirmationModal";
-
-// const BASE_URL =
-//   "https://mindsoul-backend-772700176760.asia-south1.run.app/api";
-
-// export default function BookAppointmentModal({
-//   isOpen,
-//   onClose,
-//   counsellorId,
-// }) {
-//   const [counsellor, setCounsellor] = useState(null);
-//   const [availableDays, setAvailableDays] = useState([]);
-//   const [selectedDay, setSelectedDay] = useState(null);
-//   const [slots, setSlots] = useState({
-//     morning: [],
-//     afternoon: [],
-//     evening: [],
-//   });
-//   const [selectedSlot, setSelectedSlot] = useState(null);
-//   const [loading, setLoading] = useState(false);
-//   const [loadingSlots, setLoadingSlots] = useState(false);
-//   const [processingPayment, setProcessingPayment] = useState(false);
-//   const [isBooked, setIsBooked] = useState(false);
-//   const [appointmentData, setAppointmentData] = useState(null);
-
-//   /* -------------------- Generate Next 14 Days -------------------- */
-//   const generateNextDays = (count = 14) => {
-//     const days = [];
-//     for (let i = 0; i < count; i++) {
-//       const d = new Date();
-//       d.setDate(d.getDate() + i);
-//       days.push({
-//         label:
-//           i === 0
-//             ? "Today"
-//             : d.toLocaleDateString("en-US", { weekday: "short" }),
-//         date: d.toLocaleDateString("en-US", { day: "2-digit", month: "short" }),
-//         fullDate: d.toISOString().split("T")[0],
-//       });
-//     }
-//     console.log("Generated next 14 days:", days);
-//     return days;
-//   };
-
-//   /* -------------------- Fetch Counsellor -------------------- */
-//   useEffect(() => {
-//     if (!isOpen || !counsellorId) return;
-//     async function fetchCounsellor() {
-//       try {
-//         setLoading(true);
-//         const res = await fetch(`${BASE_URL}/counsellor/${counsellorId}`);
-//         const data = await res.json();
-//         console.log("Fetched counsellor data:", data);
-//         if (data?.counsellor) {
-//           setCounsellor(data.counsellor);
-//           const days = generateNextDays();
-//           setAvailableDays(days);
-//           setSelectedDay(days[0]);
-//         }
-//       } catch (err) {
-//         console.error("Fetch counsellor error:", err);
-//       } finally {
-//         setLoading(false);
-//       }
-//     }
-//     fetchCounsellor();
-//   }, [isOpen, counsellorId]);
-
-//   /* -------------------- Load Slots -------------------- */
-//   const loadSlotsForDate = async (date) => {
-//     try {
-//       setLoadingSlots(true);
-//       setSelectedSlot(null);
-
-//       console.log("Refreshing slots for date:", date);
-//       await fetch(
-//         `${BASE_URL}/timeslots/counsellor/${counsellorId}/refresh?date=${date}`,
-//         { method: "POST", credentials: "include" }
-//       );
-
-//       const resAvail = await fetch(
-//         `${BASE_URL}/timeslots/counsellor/${counsellorId}/slots?date=${date}`,
-//         { credentials: "include" }
-//       );
-//       const availData = await resAvail.json();
-//       // console.log("Available slots data:", availData);
-
-//       const resBooked = await fetch(
-//         `${BASE_URL}/timeslots/counsellor/${counsellorId}/booked?date=${date}`,
-//         { credentials: "include" }
-//       );
-//       const bookedData = await resBooked.json();
-//       // console.log("Booked slots data:", bookedData);
-
-//       const slotMap = new Map();
-//       ["morning", "afternoon", "evening"].forEach((period) => {
-//         (availData.slots?.[period] || []).forEach((s) => {
-//           slotMap.set(s.startTime, { ...s, isBooked: false });
-//         });
-//       });
-//       (bookedData.bookedSlots || []).forEach((s) => {
-//         slotMap.set(s.startTime, { ...s, isBooked: true });
-//       });
-
-//       let mergedSlots = Array.from(slotMap.values());
-
-//       if (date === new Date().toISOString().split("T")[0]) {
-//         const now = new Date();
-//         mergedSlots = mergedSlots.filter((slot) => {
-//           const [h, m] = slot.startTime.split(":").map(Number);
-//           const slotTime = new Date();
-//           slotTime.setHours(h, m, 0, 0);
-//           return slotTime > now;
-//         });
-//       }
-
-//       const grouped = { morning: [], afternoon: [], evening: [] };
-//       mergedSlots.forEach((s) => {
-//         const hour = parseInt(s.startTime.split(":")[0], 10);
-//         if (hour < 12) grouped.morning.push(s);
-//         else if (hour < 17) grouped.afternoon.push(s);
-//         else grouped.evening.push(s);
-//       });
-
-//       // console.log("Grouped slots:", grouped);
-//       setSlots(grouped);
-//     } catch (err) {
-//       console.error("Load slots error:", err);
-//       setSlots({ morning: [], afternoon: [], evening: [] });
-//     } finally {
-//       setLoadingSlots(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     if (selectedDay) loadSlotsForDate(selectedDay.fullDate);
-//   }, [selectedDay]);
-
-//   /* -------------------- Load Razorpay Script -------------------- */
-//   const loadRazorpayScript = () =>
-//     new Promise((resolve) => {
-//       const script = document.createElement("script");
-//       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-//       script.onload = () => resolve(true);
-//       script.onerror = () => resolve(false);
-//       document.body.appendChild(script);
-//     });
-
-//   /* -------------------- Book + Payment -------------------- */
-//   const handlePaymentAndBooking = async () => {
-//     if (!selectedSlot || !selectedDay) return;
-
-//     try {
-//       setProcessingPayment(true);
-//       const token = localStorage.getItem("token");
-//       if (!token) return alert("Please login again");
-
-//       // console.log("Booking slot:", selectedSlot, "on day:", selectedDay);
-
-//       /* 1️⃣ CREATE APPOINTMENT */
-//       const res = await fetch(`${BASE_URL}/appointment`, {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//         body: JSON.stringify({
-//           counsellorId,
-//           date: selectedDay.fullDate,
-//           timeSlot: `${selectedSlot.startTime}-${selectedSlot.endTime}`,
-//         }),
-//       });
-//       const data = await res.json();
-//       console.log("Appointment creation response:", data);
-//       if (!res.ok || !data.success)
-//         throw new Error(data.message || "Booking failed");
-//       const appointment = data.appointment;
-
-//       /* 2️⃣ CREATE RAZORPAY ORDER */
-//       const orderRes = await fetch(`${BASE_URL}/payment/create-order`, {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//         body: JSON.stringify({ appointmentId: appointment.appointmentId }),
-//       });
-//       const orderData = await orderRes.json();
-//       console.log("Razorpay order creation response:", orderData);
-//       if (!orderRes.ok || !orderData.success)
-//         throw new Error("Failed to create Razorpay order");
-
-//       const loaded = await loadRazorpayScript();
-//       if (!loaded) throw new Error("Razorpay SDK failed to load");
-
-//       /* 3️⃣ RAZORPAY PAYMENT */
-//       const options = {
-//         key: "rzp_test_Rv3rhMFLbflgAX",
-//         amount: orderData.order.amount,
-//         currency: "INR",
-//         name: "MindSoul Counselling",
-//         description: `Session with ${appointment.counsellorProfileSnapshot.firstName}`,
-//         order_id: orderData.order.id,
-//         handler: async (response) => {
-//           try {
-//             // console.log("Razorpay payment success response:", response);
-
-//             /* 4️⃣ VERIFY PAYMENT */
-//             const verifyRes = await fetch(
-//               `${BASE_URL}/payment/verify-payment`,
-//               {
-//                 method: "POST",
-//                 headers: {
-//                   "Content-Type": "application/json",
-//                   Authorization: `Bearer ${token}`,
-//                 },
-//                 body: JSON.stringify({
-//                   appointmentId: appointment.appointmentId,
-//                   razorpay_payment_id: response.razorpay_payment_id,
-//                   razorpay_order_id: response.razorpay_order_id,
-//                   razorpay_signature: response.razorpay_signature,
-//                 }),
-//               }
-//             );
-//             const verifyData = await verifyRes.json();
-//             console.log("Verify payment response:", verifyData);
-//             if (!verifyRes.ok || !verifyData.success)
-//               throw new Error("Verification failed");
-
-//             /* 5️⃣ UPDATE SLOT UI */
-//             setSlots((prev) => {
-//               const updated = { ...prev };
-//               Object.keys(updated).forEach((p) => {
-//                 updated[p] = updated[p].map((s) =>
-//                   s.startTime === selectedSlot.startTime
-//                     ? { ...s, isBooked: true }
-//                     : s
-//                 );
-//               });
-//               return updated;
-//             });
-
-//             const finalAppointment = verifyData.appointment || appointment;
-//             // console.log("Final appointment data:", finalAppointment);
-
-//             setAppointmentData(finalAppointment);
-//             setIsBooked(true);
-//           } catch (err) {
-//             console.error("Payment handler error:", err);
-//             alert("Payment successful but verification failed");
-//           }
-//         },
-//         prefill: { email: appointment.studentEmail },
-//         theme: { color: "#778DA9" },
-//       };
-
-//       console.log("Razorpay options:", options);
-//       new window.Razorpay(options).open();
-//     } catch (err) {
-//       console.error("Booking & Payment Error:", err);
-//       alert(err.message || "Something went wrong");
-//     } finally {
-//       setProcessingPayment(false);
-//     }
-//   };
-
-//   /* -------------------- Slot Card -------------------- */
-//   const SlotCard = ({ slot }) => {
-//     const isSelected =
-//       selectedSlot?.startTime === slot.startTime &&
-//       selectedSlot?.endTime === slot.endTime;
-
-//     return (
-//       <button
-//         disabled={slot.isBooked}
-//         onClick={() => {
-//           console.log("Selected slot:", slot);
-//           setSelectedSlot(slot);
-//         }}
-//         className={`border rounded-lg px-4 py-2 text-sm transition
-//           ${
-//             slot.isBooked
-//               ? "bg-red-100 text-red-500 cursor-not-allowed"
-//               : "hover:border-accent"
-//           }
-//           ${isSelected ? "bg-primary text-white" : ""}`}
-//       >
-//         {slot.startTime} - {slot.endTime}
-//         {slot.isBooked && (
-//           <span className="ml-2 text-xs text-green-600">(Scheduled)</span>
-//         )}
-//       </button>
-//     );
-//   };
-
-//   if (!isOpen) return null;
-//   if (isBooked && appointmentData) {
-//     console.log("Opening AppointmentConfirmationModal:", appointmentData);
-//     return (
-//       <AppointmentConfirmationModal
-//         isOpen
-//         appointment={appointmentData}
-//         onClose={onClose}
-//       />
-//     );
-//   }
-
-//   /* -------------------- UI -------------------- */
-//   return (
-//     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-//       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl relative max-h-[90vh] overflow-y-auto">
-//         <button onClick={onClose} className="absolute top-4 right-4 text-xl">
-//           <FiX />
-//         </button>
-
-//         <div className="px-6 pt-6">
-//           <h2 className="text-2xl font-semibold font-heading text-textDark">
-//             Book Appointment
-//           </h2>
-//         </div>
-
-//         {/* Counsellor Info */}
-//         <div className="px-6 mt-4 flex items-center gap-4">
-//           {loading ? (
-//             <p>Loading...</p>
-//           ) : counsellor ? (
-//             <>
-//               <img
-//                 src={counsellor.imageUrl}
-//                 className="w-16 h-16 rounded-full object-cover"
-//                 alt=""
-//               />
-//               <div>
-//                 <h3 className="text-lg font-semibold">
-//                   {counsellor.firstName} {counsellor.lastName}
-//                 </h3>
-//                 <p className="text-sm text-gray-500">
-//                   {counsellor.experience} Experience
-//                 </p>
-//               </div>
-//             </>
-//           ) : null}
-//         </div>
-
-//         {/* Available Days */}
-//         <div className="px-6 mt-6">
-//           <p className="font-medium mb-3">Available Days</p>
-//           <div className="flex gap-3 overflow-x-auto pb-2">
-//             {availableDays.map((day) => (
-//               <button
-//                 key={day.fullDate}
-//                 onClick={() => {
-//                   console.log("Selected day:", day);
-//                   setSelectedDay(day);
-//                 }}
-//                 className={`px-4 py-2 min-w-[100px] rounded-lg border ${
-//                   selectedDay?.fullDate === day.fullDate
-//                     ? "bg-primary text-light"
-//                     : ""
-//                 }`}
-//               >
-//                 <div className="font-semibold">{day.label}</div>
-//                 <div className="text-sm">{day.date}</div>
-//               </button>
-//             ))}
-//           </div>
-//         </div>
-
-//         <hr className="my-4" />
-
-//         {/* Slots */}
-//         {["morning", "afternoon", "evening"].map((period) => (
-//           <div key={period} className="px-6 mb-4">
-//             <button className="flex justify-between w-full font-medium">
-//               {period.charAt(0).toUpperCase() + period.slice(1)} Slots
-//             </button>
-
-//             {loadingSlots ? (
-//               <p className="text-sm mt-2">Loading...</p>
-//             ) : slots[period]?.length ? (
-//               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-//                 {slots[period].map((slot) => (
-//                   <SlotCard key={slot.startTime} slot={slot} />
-//                 ))}
-//               </div>
-//             ) : (
-//               <p className="text-sm italic text-gray-500 mt-2">
-//                 No {period} slots
-//               </p>
-//             )}
-//           </div>
-//         ))}
-
-//         {/* Book & Pay */}
-//         <div className="px-6 py-4 border-t">
-//           <button
-//             onClick={handlePaymentAndBooking}
-//             disabled={!selectedSlot || processingPayment}
-//             className={`w-full py-3 rounded-lg text-white ${
-//               selectedSlot ? "bg-primary" : "bg-gray-300"
-//             }`}
-//           >
-//             {processingPayment ? "Processing..." : "Book & Pay Now"}
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// GITHUB CODE -
-import React, { useState, useEffect } from "react";
+import DialogPortal from "../ui/DialogPortal";
+import { formatTimeRange } from "../../utils/sessionDisplay";
+import { Link } from "react-router-dom";
+import { API_BASE_URL } from "../../api/apiConfig.js";
+import React, { useState, useEffect, useRef } from "react";
 import { FiX } from "react-icons/fi";
 import AppointmentConfirmationModal from "./AppointmentConfirmationModal";
+import { fetchJson, waitForScheduledAppointment } from "../../api/bookingStatus";
+import { bookingDays, isPastBookingSlot } from "../../utils/bookingDate";
+import BookingCalendar from "./BookingCalendar";
+import Wellness3D from "../ui/Wellness3D";
+import { complimentaryEligibility, createComplimentaryBooking, complimentaryRequestStatus } from "../../api/complimentaryApi";
 
-const BASE_URL =
-  "https://mindsoul-backend-772700176760.asia-south1.run.app/api";
+const BASE_URL = `${API_BASE_URL}/api`;
 
 export default function BookAppointmentModal({
   isOpen,
@@ -433,213 +27,231 @@ export default function BookAppointmentModal({
     evening: [],
   });
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectionConfirmed, setSelectionConfirmed] = useState(false);
+  useEffect(() => { setSelectionConfirmed(false); }, [selectedDay?.fullDate, selectedSlot?.startTime, selectedSlot?.endTime]);
   const [loading, setLoading] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotError, setSlotError] = useState("");
+  const [slotAttempt, setSlotAttempt] = useState(0);
+  const [availability, setAvailability] = useState(null);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
+  const [accessAttempt, setAccessAttempt] = useState(0);
+  const reviewRef = useRef(null);
+  useEffect(() => { if (selectionConfirmed) { reviewRef.current?.scrollIntoView({block:"nearest",behavior:"smooth"}); reviewRef.current?.focus({preventScroll:true}); } },[selectionConfirmed]);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
   const [appointmentData, setAppointmentData] = useState(null);
   const [showFinalLoader, setShowFinalLoader] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [pendingAppointment, setPendingAppointment] = useState(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const processingRef = useRef(false);
+  const confirmationRef = useRef(null);
+  const freeRequestRef = useRef(null);
+  const [freeEligible, setFreeEligible] = useState(false);
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [freeRecovery, setFreeRecovery] = useState(false);
+  const [accessError, setAccessError] = useState("");
+  useEffect(() => {
+    if (!isOpen) return;
+    const controller = new AbortController();
+    setAccessLoading(true); setFreeEligible(false); setAccessError(""); setFreeRecovery(false); freeRequestRef.current = null;
+    const token = localStorage.getItem("token");
+    complimentaryEligibility(token, controller.signal).then((data) => {
+      if (!controller.signal.aborted) setFreeEligible(data.eligible === true);
+    }).catch(() => {
+      if (!controller.signal.aborted) setAccessError("We couldn't verify your booking access. Please retry before proceeding.");
+    }).finally(() => { if (!controller.signal.aborted) setAccessLoading(false); });
+    return () => controller.abort();
+  }, [isOpen, counsellorId, accessAttempt]);
+  useEffect(() => {
+    if (isOpen) {
+      setIsBooked(false); setAppointmentData(null); setPendingAppointment(null);
+      setAwaitingConfirmation(false); setBookingError(""); setShowFinalLoader(false);
+      setProcessingPayment(false); setSelectedSlot(null); processingRef.current = false;
+      setCounsellor(null); setSelectedDay(null); setAvailableDays([]);
+    }
+    return () => confirmationRef.current?.abort();
+  }, [isOpen, counsellorId]);
 
   const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   /* -------------------- Generate Next 14 Days -------------------- */
-  const generateNextDays = (count = 14) => {
-    const days = [];
-    for (let i = 0; i < count; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      days.push({
-        label:
-          i === 0
-            ? "Today"
-            : d.toLocaleDateString("en-US", { weekday: "short" }),
-        date: d.toLocaleDateString("en-US", {
-          day: "2-digit",
-          month: "short",
-        }),
-        fullDate: d.toISOString().split("T")[0],
-      });
-    }
-    return days;
-  };
-
   /* -------------------- Fetch Counsellor -------------------- */
   useEffect(() => {
     if (!isOpen || !counsellorId) return;
+    const controller = new AbortController();
 
     const fetchCounsellor = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${BASE_URL}/counsellor/${counsellorId}`);
-        const data = await res.json();
+        const data = await fetchJson(`${BASE_URL}/counsellor/${counsellorId}`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
 
         if (data?.counsellor) {
           setCounsellor(data.counsellor);
-          const days = generateNextDays();
+          const days = bookingDays(45);
           setAvailableDays(days);
-          setSelectedDay(days[0]);
+
         }
       } catch (err) {
-        console.error("Fetch counsellor error:", err);
+        if (!controller.signal.aborted) setBookingError(err.message || "Could not load counsellor");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     fetchCounsellor();
+    return () => controller.abort();
   }, [isOpen, counsellorId]);
 
-  /* -------------------- Load Slots -------------------- */
-  const loadSlotsForDate = async (date) => {
-    try {
-      setLoadingSlots(true);
-      setSelectedSlot(null);
-
-      await fetch(
-        `${BASE_URL}/timeslots/counsellor/${counsellorId}/refresh?date=${date}`,
-        { method: "POST", credentials: "include" },
-      );
-
-      const resAvail = await fetch(
-        `${BASE_URL}/timeslots/counsellor/${counsellorId}/slots?date=${date}`,
-        { credentials: "include" },
-      );
-      const availData = await resAvail.json();
-
-      const resBooked = await fetch(
-        `${BASE_URL}/timeslots/counsellor/${counsellorId}/booked?date=${date}`,
-        { credentials: "include" },
-      );
-      const bookedData = await resBooked.json();
-
-      const slotMap = new Map();
-
-      ["morning", "afternoon", "evening"].forEach((period) => {
-        (availData.slots?.[period] || []).forEach((s) => {
-          slotMap.set(s.startTime, { ...s, isBooked: false });
-        });
-      });
-
-      (bookedData.bookedSlots || []).forEach((s) => {
-        slotMap.set(s.startTime, { ...s, isBooked: true });
-      });
-
-      const grouped = { morning: [], afternoon: [], evening: [] };
-
-      Array.from(slotMap.values()).forEach((s) => {
-        const hour = parseInt(s.startTime.split(":")[0], 10);
-        if (hour < 12) grouped.morning.push(s);
-        else if (hour < 16) grouped.afternoon.push(s);
-        else grouped.evening.push(s);
-      });
-
-      setSlots(grouped);
-    } catch (err) {
-      console.error("Load slots error:", err);
-      setSlots({ morning: [], afternoon: [], evening: [] });
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
+  useEffect(() => {
+    if (!isOpen || !selectedDay || !counsellorId) { setLoadingSlots(false); return; }
+    const controller = new AbortController();
+    setLoadingSlots(true); setSelectedSlot(null); setSlotError("");
+    setSlots({ morning: [], afternoon: [], evening: [] });
+    const load = async () => {
+      try {
+        const [available, booked] = await Promise.all([
+          fetchJson(`${BASE_URL}/timeslots/counsellor/${counsellorId}/slots?date=${selectedDay.fullDate}`, { signal: controller.signal }),
+          fetchJson(`${BASE_URL}/timeslots/counsellor/${counsellorId}/booked?date=${selectedDay.fullDate}`, { signal: controller.signal }),
+        ]);
+        if (controller.signal.aborted) return;
+        const grouped = { morning: [], afternoon: [], evening: [] };
+        for (const period of Object.keys(grouped)) grouped[period] = (available.slots?.[period] || []).map((slot) => ({ ...slot, isBooked: false }));
+        for (const slot of booked.bookedSlots || []) if (grouped[slot.period]) grouped[slot.period].push({ ...slot, isBooked: true });
+        for (const group of Object.values(grouped)) group.sort((a, b) => a.startTime.localeCompare(b.startTime));
+        setSlots(grouped);
+      } catch (error) {
+        if (!controller.signal.aborted) setSlotError(error.message || "Could not load available slots");
+      } finally {
+        if (!controller.signal.aborted) setLoadingSlots(false);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [isOpen, selectedDay, counsellorId, slotAttempt]);
 
   useEffect(() => {
-    if (selectedDay) loadSlotsForDate(selectedDay.fullDate);
-  }, [selectedDay]);
+    if (!isOpen || !counsellorId || !availableDays.length) return;
+    const controller = new AbortController(); setAvailability(null); setAvailabilityError("");
+    fetchJson(`${BASE_URL}/timeslots/counsellor/${counsellorId}/availability?from=${availableDays[0].fullDate}&days=45`,{signal:controller.signal})
+      .then((data) => { if (!Array.isArray(data.dates)) throw new Error("Availability response is invalid"); if (controller.signal.aborted) return; setAvailability(data.dates); setSelectedDay((current) => data.dates.some((item) => item.date === current?.fullDate) ? current : availableDays.find((day) => day.fullDate === data.nextAvailableDate) || null); })
+      .catch((error) => { if (!controller.signal.aborted) setAvailabilityError(error.message || "Could not check available dates"); });
+    return () => controller.abort();
+  },[isOpen,counsellorId,availableDays,availabilityAttempt]);
 
   /* -------------------- Razorpay Script -------------------- */
   const loadRazorpayScript = () =>
     new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
       const script = document.createElement("script");
+      const timeout = setTimeout(() => {
+        script.remove();
+        resolve(false);
+      }, 15000);
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
+      script.onload = () => { clearTimeout(timeout); resolve(true); };
+      script.onerror = () => { clearTimeout(timeout); script.remove(); resolve(false); };
       document.body.appendChild(script);
     });
 
-  /* -------------------- Book + Payment -------------------- */
-  const handlePaymentAndBooking = async () => {
-    if (!selectedSlot || !selectedDay) return;
-
+  const handleComplimentaryBooking = async () => {
+    if (processingRef.current || !freeEligible || !selectedDay || !selectedSlot) return;
+    processingRef.current = true; setProcessingPayment(true); setBookingError("");
+    const token = localStorage.getItem("token");
+    const timeSlot = selectedSlot.startTime + "-" + selectedSlot.endTime;
+    if (!freeRequestRef.current || (!freeRecovery && (freeRequestRef.current.date !== selectedDay.fullDate || freeRequestRef.current.timeSlot !== timeSlot))) freeRequestRef.current = { requestId: crypto.randomUUID(), counsellorId, date: selectedDay.fullDate, timeSlot };
     try {
-      setProcessingPayment(true);
+      let result;
+      if (freeRecovery) {
+        result = await complimentaryRequestStatus(freeRequestRef.current.requestId, token);
+        if (result.appointment?.status === "booking_failed") { setFreeRecovery(false); const failure = new Error("The session could not be prepared. Try booking again; no payment is required."); failure.status = 400; throw failure; }
+        if (result.appointment?.status === "preparing" && Date.now() - result.appointment.reservationStartedAt >= 180000) {
+          result = await createComplimentaryBooking(freeRequestRef.current, token);
+        }
+      } else {
+        result = await createComplimentaryBooking(freeRequestRef.current, token);
+      }
+      if (result.appointment?.status !== "scheduled") { setFreeRecovery(true); throw new Error("Your free booking is still processing. Check its status shortly."); }
+      setAppointmentData(result.appointment); setIsBooked(true); setFreeRecovery(false);
+    } catch (error) {
+      if (error.status === 404) setFreeRecovery(false);
+      else if (!error.status || error.status === 409 || error.status >= 500) setFreeRecovery(true);
+      setBookingError(error.message || "We couldn't complete the complimentary booking.");
+    } finally {
+      setProcessingPayment(false); processingRef.current = false;
+    }
+  };
+
+  const confirmAppointment = async (appointment, token, signal) => {
+    const scheduled = await waitForScheduledAppointment({ appointmentId: appointment.appointmentId || appointment.id, token, signal });
+    if (signal.aborted) return;
+    setAppointmentData({ ...appointment, ...scheduled, zoomLink: scheduled.meetingLink || appointment.zoomLink });
+    setIsBooked(true); setAwaitingConfirmation(false);
+  };
+  const checkBookingStatus = async () => {
+    if (!pendingAppointment || processingRef.current) return;
+    processingRef.current = true; setBookingError(""); setShowFinalLoader(true);
+    const controller = new AbortController(); confirmationRef.current = controller;
+    try {
+      await confirmAppointment(pendingAppointment, localStorage.getItem("token"), controller.signal);
+    } catch (error) {
+      if (!controller.signal.aborted) setBookingError(error.message || "Could not check booking status. Do not pay again.");
+    } finally {
+      if (!controller.signal.aborted) { setShowFinalLoader(false); processingRef.current = false; }
+    }
+  };
+  const handlePaymentAndBooking = async () => {
+    if ((!pendingAppointment && (!selectedSlot || !selectedDay)) || processingRef.current || awaitingConfirmation) return;
+    processingRef.current = true; setProcessingPayment(true); setBookingError("");
+    let checkoutOpened = false;
+    try {
       const token = localStorage.getItem("token");
-      if (!token) return alert("Please login again");
-
-      const res = await fetch(`${BASE_URL}/appointment`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          counsellorId,
-          date: selectedDay.fullDate,
-          timeSlot: `${selectedSlot.startTime}-${selectedSlot.endTime}`,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success)
-        throw new Error(data.message || "Booking failed");
-
-      const appointment = data.appointment;
-
-      const orderRes = await fetch(`${BASE_URL}/payment/create-order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+      if (!token) throw new Error("Please login again");
+      if (!razorpayKey) throw new Error("Checkout is not configured. Please contact support.");
+      let appointment = pendingAppointment;
+      if (!appointment) {
+        const data = await fetchJson(`${BASE_URL}/appointment`, {
+          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ counsellorId, date: selectedDay.fullDate, timeSlot: `${selectedSlot.startTime}-${selectedSlot.endTime}` }),
+        });
+        appointment = data.appointment; setPendingAppointment(appointment);
+      }
+      const orderData = await fetchJson(`${BASE_URL}/payment/create-order`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ appointmentId: appointment.appointmentId }),
       });
-
-      const orderData = await orderRes.json();
-      if (!orderRes.ok || !orderData.success)
-        throw new Error("Failed to create Razorpay order");
-
       const loaded = await loadRazorpayScript();
       if (!loaded) throw new Error("Razorpay SDK failed to load");
-
-      new window.Razorpay({
-        key: razorpayKey,
-        amount: orderData.order.amount,
-        currency: "INR",
-        name: "MindSoul Counselling",
-        description: "Counselling Session",
-        order_id: orderData.order.id,
+      const checkout = new window.Razorpay({
+        key: razorpayKey, amount: orderData.order.amount, currency: orderData.order.currency || "INR",
+        name: "MindSoul Counselling", description: "Counselling Session", order_id: orderData.order.id,
+        modal: { ondismiss: () => { processingRef.current = false; setProcessingPayment(false); } },
         handler: async (response) => {
-          // 🔒 SHOW FINAL LOADER
-          setShowFinalLoader(true);
-          const verifyRes = await fetch(`${BASE_URL}/payment/verify-payment`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              appointmentId: appointment.appointmentId,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-            }),
-          });
-
-          const verifyData = await verifyRes.json();
-          if (!verifyRes.ok || !verifyData.success)
-            throw new Error("Payment verification failed");
-
-          setAppointmentData(verifyData.appointment || appointment);
-          setIsBooked(true);
-          setShowFinalLoader(false);
-        },
-        theme: { color: "#778DA9" },
-      }).open();
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Something went wrong");
-      setShowFinalLoader(false);
+          setAwaitingConfirmation(true); setShowFinalLoader(true);
+          const controller = new AbortController(); confirmationRef.current = controller;
+          try {
+            await fetchJson(`${BASE_URL}/payment/verify-payment`, {
+              method: "POST", signal: controller.signal,
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ appointmentId: appointment.appointmentId,
+                razorpay_payment_id: response.razorpay_payment_id, razorpay_order_id: response.razorpay_order_id, razorpay_signature: response.razorpay_signature }),
+            });
+            await confirmAppointment(appointment, token, controller.signal);
+          } catch (error) {
+            if (!controller.signal.aborted) setBookingError(error.message || "Could not confirm your appointment. Check its status before paying again.");
+          } finally {
+            if (!controller.signal.aborted) { setShowFinalLoader(false); setProcessingPayment(false); processingRef.current = false; }
+          }
+        }, theme: { color: "#778DA9" },
+      });
+      checkout.open(); checkoutOpened = true;
+    } catch (error) {
+      setBookingError(error.message || "Something went wrong");
     } finally {
-      setProcessingPayment(false);
+      if (!checkoutOpened) { setProcessingPayment(false); processingRef.current = false; }
     }
   };
 
@@ -649,18 +261,11 @@ export default function BookAppointmentModal({
       selectedSlot?.startTime === slot.startTime &&
       selectedSlot?.endTime === slot.endTime;
 
-    const isPast =
-      selectedDay?.fullDate === new Date().toISOString().split("T")[0] &&
-      (() => {
-        const [h, m] = slot.startTime.split(":").map(Number);
-        const t = new Date();
-        t.setHours(h, m, 0, 0);
-        return t <= new Date();
-      })();
+    const isPast = selectedDay && isPastBookingSlot(selectedDay.fullDate, slot.startTime);
 
     return (
       <button
-        disabled={slot.isBooked || isPast}
+        disabled={slot.isBooked || isPast || loadingSlots || processingPayment || !!pendingAppointment}
         onClick={() => !slot.isBooked && !isPast && setSelectedSlot(slot)}
         className={`border rounded-lg px-4 py-2 text-sm
           ${
@@ -687,7 +292,7 @@ export default function BookAppointmentModal({
   /* -------------------- FINAL LOADER UI -------------------- */
   if (showFinalLoader) {
     return (
-      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+      <DialogPortal label="Confirming your appointment" onClose={onClose} locked><div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
           <h3 className="text-lg font-semibold mb-2">
@@ -696,10 +301,10 @@ export default function BookAppointmentModal({
           <p className="text-sm text-gray-600">
             Please do not refresh or close this page.
             <br />
-            Your payment is being verified.
+            Your appointment is being confirmed.
           </p>
         </div>
-      </div>
+      </div></DialogPortal>
     );
   }
 
@@ -715,9 +320,9 @@ export default function BookAppointmentModal({
 
   /* -------------------- UI -------------------- */
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-xl">
+    <DialogPortal label="Book your session" onClose={onClose} locked={processingPayment}><div className="booking-modal fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-3 sm:p-6 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl relative max-h-[90dvh] overflow-y-auto pb-2">
+        <button onClick={onClose} disabled={processingPayment} aria-label="Close booking" className="absolute top-4 right-4 text-xl">
           <FiX />
         </button>
 
@@ -748,26 +353,19 @@ export default function BookAppointmentModal({
           ) : null}
         </div>
 
-        {/* Days */}
-        <div className="px-6 mt-4 flex gap-3 overflow-x-auto">
-          {availableDays.map((day) => (
-            <button
-              key={day.fullDate}
-              onClick={() => setSelectedDay(day)}
-              className={`px-4 py-2 rounded-lg border ${
-                selectedDay?.fullDate === day.fullDate
-                  ? "bg-primary text-white"
-                  : ""
-              }`}
-            >
-              <div>{day.label}</div>
-              <div className="text-sm">{day.date}</div>
-            </button>
-          ))}
+        <div className="px-6 mt-6 booking-date-layout">
+          <BookingCalendar availableDates={availability?.map((item) => item.date) || []} days={availableDays} selectedDay={selectedDay} onSelect={(day) => { setSelectedSlot(null); setSelectedDay(day); }} disabled={processingPayment || !!pendingAppointment || freeRecovery} />
+          <div className="booking-date-summary"><Wellness3D className="booking-wellness-3d" /><p className="eyebrow">A little time for you</p><h3>{selectedDay ? new Date(selectedDay.fullDate + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : "Choose your day"}</h3><p aria-live="polite">{selectedSlot ? formatTimeRange(selectedSlot.startTime + "-" + selectedSlot.endTime) : "Choose an available session time below."}</p></div>
         </div>
 
+        {availabilityError && <p role="alert" className="form-error mx-6 mt-4">{availabilityError} <button className="underline" onClick={() => setAvailabilityAttempt((value) => value + 1)}>Retry availability</button></p>}
+        {!availability && !availabilityError && <p role="status" className="px-6 mt-4 text-sm">Checking available dates...</p>}
+        {availability?.length === 0 && <div className="surface mx-6 mt-4"><p>No appointments are available in the next 45 days.</p><Link className="text-link mt-3" to="/counsellors" onClick={onClose}>Browse other counsellors</Link></div>}
+        {slotError && <p role="alert" className="form-error mx-6 mt-4">{slotError} <button className="underline" onClick={() => setSlotAttempt((value) => value + 1)}>Retry times</button></p>}
         {/* Slots */}
-        {["morning", "afternoon", "evening"].map((period) => (
+        {loadingSlots && <p role="status" className="px-6 mt-5 text-sm text-gray-500">Finding available times...</p>}
+        {!loadingSlots && !slotError && selectedDay && !Object.values(slots).some((group) => group.length) && <div className="surface mx-6 mt-4"><p>This date no longer has available times.</p><button className="text-link mt-3" onClick={() => { const next = availability?.find((item) => item.date > selectedDay.fullDate); if (next) setSelectedDay(availableDays.find((day) => day.fullDate === next.date)); else setAvailabilityAttempt((value) => value + 1); }}>Find next available</button></div>}
+        {["morning", "afternoon", "evening"].filter((period) => slots[period].length).map((period) => (
           <div key={period} className="px-6 mt-4">
             <p className="font-medium capitalize">{period} Slots</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 ">
@@ -779,519 +377,30 @@ export default function BookAppointmentModal({
         ))}
 
         {/* Book */}
-        <div className="px-6 py-4">
+        <div className="booking-sticky-footer px-6 py-4">
+          {selectionConfirmed && selectedDay && selectedSlot && <section ref={reviewRef} tabIndex={-1} className="surface mb-4" aria-label="Review date and time" aria-live="polite"><p className="eyebrow">Review your session</p><h3 className="text-lg">Confirm your date &amp; time</h3><p className="mt-3 text-sm">{new Date(selectedDay.fullDate + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</p><p className="text-sm font-semibold mt-2">{formatTimeRange(selectedSlot.startTime + "-" + selectedSlot.endTime)}</p><p className="text-xs text-gray-500 mt-3">{freeEligible ? "This session is complimentary. No payment is required." : "Your booking will proceed to secure checkout after confirmation."}</p><button className="text-link mt-4" disabled={processingPayment} onClick={() => setSelectionConfirmed(false)}>Change date or time</button></section>}
+          {freeEligible && <p className="form-success mb-3">Unlimited complimentary access: this session is free. No payment is required.</p>}
+          {accessLoading && <p role="status" className="mb-3 text-xs text-gray-500">Checking your booking access...</p>}
+          {accessError && <p role="alert" className="form-error mb-3">{accessError} <button className="underline" onClick={() => setAccessAttempt((value) => value + 1)}>Retry access</button></p>}
+          {bookingError && <p role="alert" className="mb-3 text-sm text-red-600">{bookingError}</p>}
+          {awaitingConfirmation && <p className="mb-3 text-sm text-gray-600">Your booking is processing. Check its status before paying again.</p>}
           <button
-            onClick={handlePaymentAndBooking}
-            disabled={!selectedSlot || processingPayment}
+            onClick={() => {
+              if (!selectionConfirmed && !freeRecovery && !awaitingConfirmation && !pendingAppointment) { setSelectionConfirmed(true); return; }
+              if (freeEligible) handleComplimentaryBooking();
+              else if (awaitingConfirmation) checkBookingStatus();
+              else handlePaymentAndBooking();
+            }}
+            disabled={processingPayment || loading || loadingSlots || accessLoading || !!accessError || (!awaitingConfirmation && !pendingAppointment && !selectedSlot)}
             className={`w-full py-3 rounded-lg text-white cursor-pointer ${
               selectedSlot ? "bg-primary" : "bg-gray-300"
             }`}
           >
-            {processingPayment ? "Processing..." : "Book & Pay Now"}
+            {processingPayment ? "Processing..." : freeRecovery ? "Check free booking status" : awaitingConfirmation ? "Check appointment status" : pendingAppointment ? "Resume checkout" : !selectionConfirmed ? "Review date & time" : freeEligible ? "Confirm free booking" : "Confirm & pay"}
           </button>
         </div>
       </div>
-    </div>
+    </div></DialogPortal>
   );
 }
 
-// Calender added code
-// import React, { useState, useEffect, useRef } from "react";
-// import AppointmentConfirmationModal from "./AppointmentConfirmationModal";
-// import { FiX, FiCalendar } from "react-icons/fi";
-// import { DatePicker, ConfigProvider } from "antd";
-// import dayjs from "dayjs";
-
-// const BASE_URL =
-//   "https://mindsoul-backend-772700176760.asia-south1.run.app/api";
-
-// export default function BookAppointmentModal({
-//   isOpen,
-//   onClose,
-//   counsellorId,
-// }) {
-//   const [counsellor, setCounsellor] = useState(null);
-//   const [availableDays, setAvailableDays] = useState([]);
-//   const [selectedDay, setSelectedDay] = useState(null);
-//   const [slots, setSlots] = useState({
-//     morning: [],
-//     afternoon: [],
-//     evening: [],
-//   });
-//   const [selectedSlot, setSelectedSlot] = useState(null);
-//   const [loading, setLoading] = useState(false);
-//   const [loadingSlots, setLoadingSlots] = useState(false);
-//   const [processingPayment, setProcessingPayment] = useState(false);
-//   const [isBooked, setIsBooked] = useState(false);
-//   const [appointmentData, setAppointmentData] = useState(null);
-//   const [showFinalLoader, setShowFinalLoader] = useState(false);
-//   const calendarRef = useRef(null);
-//   const [showCalendar, setShowCalendar] = useState(false);
-//   const [selectedDate, setSelectedDate] = useState(dayjs());
-
-//   /* -------------------- Generate Next 14 Days -------------------- */
-//   const generateNextDays = (count = 14) => {
-//     const days = [];
-//     for (let i = 0; i < count; i++) {
-//       const d = new Date();
-//       d.setDate(d.getDate() + i);
-//       days.push({
-//         label:
-//           i === 0
-//             ? "Today"
-//             : d.toLocaleDateString("en-US", { weekday: "short" }),
-//         date: d.toLocaleDateString("en-US", {
-//           day: "2-digit",
-//           month: "short",
-//         }),
-//         fullDate: d.toISOString().split("T")[0],
-//       });
-//     }
-//     return days;
-//   };
-
-//   /* -------------------- Fetch Counsellor -------------------- */
-//   useEffect(() => {
-//     if (!isOpen || !counsellorId) return;
-
-//     const fetchCounsellor = async () => {
-//       try {
-//         setLoading(true);
-//         const res = await fetch(`${BASE_URL}/counsellor/${counsellorId}`);
-//         const data = await res.json();
-
-//         if (data?.counsellor) {
-//           setCounsellor(data.counsellor);
-//           const days = generateNextDays();
-//           setAvailableDays(days);
-//           setSelectedDay(days[0]);
-//         }
-//       } catch (err) {
-//         console.error("Fetch counsellor error:", err);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchCounsellor();
-//   }, [isOpen, counsellorId]);
-
-//   /* -------------------- Load Slots -------------------- */
-//   const loadSlotsForDate = async (date) => {
-//     try {
-//       setLoadingSlots(true);
-//       setSelectedSlot(null);
-
-//       await fetch(
-//         `${BASE_URL}/timeslots/counsellor/${counsellorId}/refresh?date=${date}`,
-//         { method: "POST", credentials: "include" }
-//       );
-
-//       const resAvail = await fetch(
-//         `${BASE_URL}/timeslots/counsellor/${counsellorId}/slots?date=${date}`,
-//         { credentials: "include" }
-//       );
-//       const availData = await resAvail.json();
-
-//       const resBooked = await fetch(
-//         `${BASE_URL}/timeslots/counsellor/${counsellorId}/booked?date=${date}`,
-//         { credentials: "include" }
-//       );
-//       const bookedData = await resBooked.json();
-
-//       const slotMap = new Map();
-
-//       ["morning", "afternoon", "evening"].forEach((period) => {
-//         (availData.slots?.[period] || []).forEach((s) => {
-//           slotMap.set(s.startTime, { ...s, isBooked: false });
-//         });
-//       });
-
-//       (bookedData.bookedSlots || []).forEach((s) => {
-//         slotMap.set(s.startTime, { ...s, isBooked: true });
-//       });
-
-//       const grouped = { morning: [], afternoon: [], evening: [] };
-
-//       Array.from(slotMap.values()).forEach((s) => {
-//         const hour = parseInt(s.startTime.split(":")[0], 10);
-//         if (hour < 12) grouped.morning.push(s);
-//         else if (hour < 16) grouped.afternoon.push(s);
-//         else grouped.evening.push(s);
-//       });
-
-//       setSlots(grouped);
-//     } catch (err) {
-//       console.error("Load slots error:", err);
-//       setSlots({ morning: [], afternoon: [], evening: [] });
-//     } finally {
-//       setLoadingSlots(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     if (selectedDay) loadSlotsForDate(selectedDay.fullDate);
-//   }, [selectedDay]);
-
-//   /* -------------------- Razorpay Script -------------------- */
-//   const loadRazorpayScript = () =>
-//     new Promise((resolve) => {
-//       const script = document.createElement("script");
-//       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-//       script.onload = () => resolve(true);
-//       script.onerror = () => resolve(false);
-//       document.body.appendChild(script);
-//     });
-
-//   const handleDateChange = (date) => {
-//     if (!date) return;
-
-//     setSelectedDate(date);
-//     const jsDate = date.toDate();
-
-//     const days = [];
-//     for (let i = 0; i < 14; i++) {
-//       const d = new Date(jsDate);
-//       d.setDate(d.getDate() + i);
-//       days.push({
-//         label:
-//           i === 0
-//             ? "Today"
-//             : d.toLocaleDateString("en-US", { weekday: "short" }),
-//         date: d.toLocaleDateString("en-US", {
-//           day: "2-digit",
-//           month: "short",
-//         }),
-//         fullDate: d.toISOString().split("T")[0],
-//       });
-//     }
-
-//     setAvailableDays(days);
-//     setSelectedDay(days[0]);
-//     setShowCalendar(false);
-//   };
-
-//   useEffect(() => {
-//     const handler = (e) => {
-//       if (calendarRef.current && !calendarRef.current.contains(e.target)) {
-//         setShowCalendar(false);
-//       }
-//     };
-
-//     document.addEventListener("mousedown", handler);
-//     return () => document.removeEventListener("mousedown", handler);
-//   }, []);
-
-//   /* -------------------- Book + Payment -------------------- */
-//   const handlePaymentAndBooking = async () => {
-//     if (!selectedSlot || !selectedDay) return;
-
-//     try {
-//       setProcessingPayment(true);
-//       const token = localStorage.getItem("token");
-//       if (!token) return alert("Please login again");
-
-//       const res = await fetch(`${BASE_URL}/appointment`, {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//         body: JSON.stringify({
-//           counsellorId,
-//           date: selectedDay.fullDate,
-//           timeSlot: `${selectedSlot.startTime}-${selectedSlot.endTime}`,
-//         }),
-//       });
-
-//       const data = await res.json();
-//       if (!res.ok || !data.success)
-//         throw new Error(data.message || "Booking failed");
-
-//       const appointment = data.appointment;
-
-//       const orderRes = await fetch(`${BASE_URL}/payment/create-order`, {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//         body: JSON.stringify({ appointmentId: appointment.appointmentId }),
-//       });
-
-//       const orderData = await orderRes.json();
-//       if (!orderRes.ok || !orderData.success)
-//         throw new Error("Failed to create Razorpay order");
-
-//       const loaded = await loadRazorpayScript();
-//       if (!loaded) throw new Error("Razorpay SDK failed to load");
-
-//       new window.Razorpay({
-//         key: "rzp_test_Rv3rhMFLbflgAX",
-//         amount: orderData.order.amount,
-//         currency: "INR",
-//         name: "MindSoul Counselling",
-//         description: "Counselling Session",
-//         order_id: orderData.order.id,
-//         handler: async (response) => {
-//           // 🔒 SHOW FINAL LOADER
-//           setShowFinalLoader(true);
-//           const verifyRes = await fetch(`${BASE_URL}/payment/verify-payment`, {
-//             method: "POST",
-//             headers: {
-//               "Content-Type": "application/json",
-//               Authorization: `Bearer ${token}`,
-//             },
-//             body: JSON.stringify({
-//               appointmentId: appointment.appointmentId,
-//               razorpay_payment_id: response.razorpay_payment_id,
-//               razorpay_order_id: response.razorpay_order_id,
-//               razorpay_signature: response.razorpay_signature,
-//             }),
-//           });
-
-//           const verifyData = await verifyRes.json();
-//           if (!verifyRes.ok || !verifyData.success)
-//             throw new Error("Payment verification failed");
-
-//           setAppointmentData(verifyData.appointment || appointment);
-//           setIsBooked(true);
-//           setShowFinalLoader(false);
-//         },
-//         theme: { color: "#778DA9" },
-//       }).open();
-//     } catch (err) {
-//       console.error(err);
-//       alert(err.message || "Something went wrong");
-//       setShowFinalLoader(false);
-//     } finally {
-//       setProcessingPayment(false);
-//     }
-//   };
-
-//   /* -------------------- Slot Card -------------------- */
-//   const SlotCard = ({ slot }) => {
-//     const isSelected =
-//       selectedSlot?.startTime === slot.startTime &&
-//       selectedSlot?.endTime === slot.endTime;
-
-//     const isPast =
-//       selectedDay?.fullDate === new Date().toISOString().split("T")[0] &&
-//       (() => {
-//         const [h, m] = slot.startTime.split(":").map(Number);
-//         const t = new Date();
-//         t.setHours(h, m, 0, 0);
-//         return t <= new Date();
-//       })();
-
-//     return (
-//       <button
-//         disabled={slot.isBooked || isPast}
-//         onClick={() => !slot.isBooked && !isPast && setSelectedSlot(slot)}
-//         className={`border rounded-lg px-4 py-2 text-sm
-//           ${
-//             slot.isBooked
-//               ? "bg-red-100 text-red-500 cursor-not-allowed"
-//               : isPast
-//               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-//               : "hover:border-accent"
-//           }
-//           ${isSelected ? "bg-primary text-white" : ""}
-
-//         `}
-//       >
-//         {slot.startTime} - {slot.endTime}
-//         {slot.isBooked && (
-//           <span className="ml-2 text-xs text-green-600">(Scheduled)</span>
-//         )}
-//       </button>
-//     );
-//   };
-
-//   if (!isOpen) return null;
-
-//   /* -------------------- FINAL LOADER UI -------------------- */
-//   if (showFinalLoader) {
-//     return (
-//       <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-//         <div className="bg-white rounded-2xl p-8 text-center max-w-md">
-//           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-//           <h3 className="text-lg font-semibold mb-2">
-//             Confirming Your Appointment
-//           </h3>
-//           <p className="text-sm text-gray-600">
-//             Please do not refresh or close this page.
-//             <br />
-//             Your payment is being verified.
-//           </p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (isBooked && appointmentData) {
-//     return (
-//       <AppointmentConfirmationModal
-//         isOpen
-//         appointment={appointmentData}
-//         onClose={onClose}
-//       />
-//     );
-//   }
-
-//   /* -------------------- UI -------------------- */
-//   return (
-//     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-//       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl relative">
-//         <button onClick={onClose} className="absolute top-4 right-4 text-xl">
-//           <FiX />
-//         </button>
-
-//         <div className="px-6 pt-6">
-//           <h2 className="text-2xl font-semibold">Book Appointment</h2>
-//         </div>
-
-//         {/* Counsellor Info */}
-//         <div className="px-6 mt-4 flex items-center gap-4">
-//           {loading ? (
-//             <p>Loading...</p>
-//           ) : counsellor ? (
-//             <>
-//               <img
-//                 src={counsellor.imageUrl}
-//                 className="w-16 h-16 rounded-full object-cover"
-//                 alt=""
-//               />
-//               <div>
-//                 <h3 className="text-lg font-semibold">
-//                   {counsellor.firstName} {counsellor.lastName}
-//                 </h3>
-//                 <p className="text-sm text-gray-500">
-//                   {counsellor.experience} Experience
-//                 </p>
-//               </div>
-//             </>
-//           ) : null}
-//         </div>
-
-//         {/* Days */}
-//         {/* <div className="px-6 mt-4 flex gap-3 overflow-x-auto">
-//           {availableDays.map((day) => (
-//             <button
-//               key={day.fullDate}
-//               onClick={() => setSelectedDay(day)}
-//               className={`px-4 py-2 rounded-lg border ${
-//                 selectedDay?.fullDate === day.fullDate
-//                   ? "bg-primary text-white"
-//                   : ""
-//               }`}
-//             >
-//               <div>{day.label}</div>
-//               <div className="text-sm">{day.date}</div>
-//             </button>
-//           ))}
-//         </div> */}
-
-//         {/* Slots */}
-//         {/* {["morning", "afternoon", "evening"].map((period) => (
-//           <div key={period} className="px-6 mt-4">
-//             <p className="font-medium capitalize">{period} Slots</p>
-//             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-//               {slots[period].map((slot) => (
-//                 <SlotCard key={slot.startTime} slot={slot} />
-//               ))}
-//             </div>
-//           </div>
-//         ))} */}
-
-//         <div className="overflow-y-scroll h-[60vh]">
-//           {/* Availability */}
-//           <div className="px-6 mt-6 relative">
-//             <div className="flex items-center justify-between mb-3">
-//               <h3 className="font-semibold text-lg">Availability</h3>
-
-//               <div className="relative" ref={calendarRef}>
-//                 <button
-//                   onClick={() => setShowCalendar((p) => !p)}
-//                   className="p-2 rounded-lg border hover:bg-gray-100"
-//                 >
-//                   <FiCalendar className="text-lg text-textDark" />
-//                 </button>
-
-//                 {showCalendar && (
-//                   <div className="absolute right-0 mt-2 z-50">
-//                     <ConfigProvider
-//                       theme={{
-//                         components: {
-//                           DatePicker: {
-//                             colorPrimary: "#2563eb",
-//                           },
-//                         },
-//                       }}
-//                     >
-//                       <DatePicker
-//                         open
-//                         value={selectedDate}
-//                         onChange={handleDateChange}
-//                         allowClear={false}
-//                         placement="bottomRight"
-//                         suffixIcon={null}
-//                         getPopupContainer={(node) => node.parentElement}
-//                       />
-//                     </ConfigProvider>
-//                   </div>
-//                 )}
-//               </div>
-//             </div>
-
-//             {/* Day Pills */}
-//             <div className="flex gap-3">
-//               {availableDays.slice(0, 3).map((day, i) => (
-//                 <button
-//                   key={day.fullDate}
-//                   onClick={() => setSelectedDay(day)}
-//                   className={`px-5 py-3 rounded-xl border min-w-[120px]
-//                    ${
-//                      selectedDay?.fullDate === day.fullDate
-//                        ? "bg-primary text-white"
-//                        : "hover:border-primary"
-//                    }
-//                  `}
-//                 >
-//                   <div className="text-sm font-medium">
-//                     {i === 0 ? "Today" : i === 1 ? "Tomorrow" : "Day After"}
-//                   </div>
-//                   <div className="text-xs mt-1">{day.date}</div>
-//                 </button>
-//               ))}
-//             </div>
-//           </div>
-//           {/* Slots */}
-//           {["morning", "afternoon", "evening"].map((period) => (
-//             <div key={period} className="px-6 mt-4">
-//               <p className="font-medium capitalize">{period} Slots</p>
-//               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-//                 {slots[period].map((slot) => (
-//                   <SlotCard key={slot.startTime} slot={slot} />
-//                 ))}
-//               </div>
-//             </div>
-//           ))}
-//         </div>
-
-//         {/* Book */}
-//         <div className="px-6 py-4">
-//           <button
-//             onClick={handlePaymentAndBooking}
-//             disabled={!selectedSlot || processingPayment}
-//             className={`w-full py-3 rounded-lg text-white ${
-//               selectedSlot ? "bg-primary" : "bg-gray-300"
-//             }`}
-//           >
-//             {processingPayment ? "Processing..." : "Book & Pay Now"}
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
