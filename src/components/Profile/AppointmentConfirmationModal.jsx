@@ -1,3 +1,5 @@
+import DialogPortal from "../ui/DialogPortal";
+import { downloadSessionCalendar } from "../../utils/sessionDisplay";
 import React from "react";
 import { FiX, FiCalendar, FiClock, FiMapPin, FiVideo } from "react-icons/fi";
 
@@ -12,7 +14,7 @@ export default function AppointmentConfirmationModal({
 
   /* ---- Helpers ---- */
   const getInitials = (firstName = "", lastName = "") =>
-    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    `${String(firstName ?? "").charAt(0)}${String(lastName ?? "").charAt(0)}`.toUpperCase();
 
   const formatDate = (dateStr) =>
     new Date(dateStr).toLocaleDateString("en-IN", {
@@ -35,11 +37,12 @@ export default function AppointmentConfirmationModal({
   }`;
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <DialogPortal label="Appointment confirmed" onClose={onClose}><div className="booking-modal fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl relative p-6 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label="Close confirmation"
           className="absolute top-4 right-4 text-gray-600 hover:text-gray-900 text-xl"
         >
           <FiX />
@@ -74,7 +77,11 @@ export default function AppointmentConfirmationModal({
           <p className="text-gray-500 mt-1 text-lg">
             Your counselling session has been scheduled successfully.
           </p>
+          {appointment.bookingType === "complimentary" && <p className="form-success mt-4">Complimentary session confirmed. No payment was required.</p>}
         </div>
+
+        <div className="flex flex-wrap gap-3 justify-center mt-5"><a className="button button-primary" href="/user-dashboard">View my appointment</a><button className="button button-secondary" onClick={() => downloadSessionCalendar(appointment)}>Add to calendar</button></div>
+        <p className="text-xs text-gray-500 text-center mt-4">Your appointment is saved in your dashboard. Keep this date and time handy.</p>
 
         {/* Session Card */}
         <div className="bg-gray-50 mt-8 rounded-xl p-5 shadow-sm">
@@ -150,6 +157,6 @@ export default function AppointmentConfirmationModal({
           </div>
         </div>
       </div>
-    </div>
+    </div></DialogPortal>
   );
 }

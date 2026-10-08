@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../api/apiConfig.js";
 // import React from "react";
 // import { Swiper, SwiperSlide } from "swiper/react";
 // import { Navigation, Pagination } from "swiper/modules";
@@ -305,7 +306,7 @@
 //   // -------------------------------
 //   // useEffect(() => {
 //   //   fetch(
-//   //     "https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/list"
+//   //     `${API_BASE_URL}/api/counsellor/list`
 //   //   )
 //   //     .then((res) => res.json())
 //   //     .then((data) => {
@@ -320,7 +321,7 @@
 //     console.log("🟡 Fetching counsellors...");
 
 //     fetch(
-//       "https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/list"
+//       `${API_BASE_URL}/api/counsellor/list`
 //     )
 //       .then((res) => {
 //         console.log("🟢 API status:", res.status);
@@ -435,7 +436,7 @@ export default function CounsellorSlider() {
     console.log("🟡 Fetching counsellors...");
 
     fetch(
-      "https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/list"
+      `${API_BASE_URL}/api/counsellor/list`
     )
       .then((res) => {
         console.log("🟢 API status:", res.status);

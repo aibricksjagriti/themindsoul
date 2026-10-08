@@ -4,10 +4,10 @@ import CounsellorProfileHeader from "../components/Counsellor-Dashboard/Counsell
 
 export default function CounsellorDashboard() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="dashboard-page">
       <CounsellorProfileHeader />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="container dashboard-body">
         <CounsellorDashboardTabs />
 
         <div className="mt-8 space-y-6">

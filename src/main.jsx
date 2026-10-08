@@ -13,7 +13,7 @@ createRoot(document.getElementById("root")).render(
     <AuthProvider>
       <StrictMode>
         <Navbar />
-        <App />
+        <main id="main-content" className="site-main"><App /></main>
         <Footer />
       </StrictMode>
     </AuthProvider>

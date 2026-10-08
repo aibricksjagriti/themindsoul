@@ -1,96 +1,21 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { API_BASE_URL } from "../../api/apiConfig.js";
+import { createElement, useEffect, useState } from "react";
 import { Mail, Phone, User, Calendar, HeartPulse } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { fetchJson } from "../../api/bookingStatus";
+import StatePanel from "../ui/StatePanel";
 
+const medical = (value) => Array.isArray(value) ? value.filter((item) => typeof item === "string").join(", ") : typeof value === "string" ? value : "";
 export default function MyInfoSection() {
-  const { token } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
+  const { token } = useAuth(); const [profile, setProfile] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [attempt, setAttempt] = useState(0);
+  useEffect(() => { const update = () => setAttempt((value) => value + 1); window.addEventListener("mindsoul-profile-updated",update); return () => window.removeEventListener("mindsoul-profile-updated",update); }, []);
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await axios.get(
-          "https://mindsoul-backend-772700176760.asia-south1.run.app/api/users/user-profile",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        setProfile(res.data.data);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load profile information");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [token]);
-
-  if (loading) {
-    return (
-      <div className="mt-10 text-center text-gray-500">
-        Loading profile information...
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="mt-10 text-center text-red-500">{error}</div>;
-  }
-
-  const InfoCard = ({ icon: Icon, label, value }) => (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border hover:shadow-md transition text-lg">
-      <div className="flex items-center gap-3 text-textDark">
-        <Icon size={20} />
-        <span className="font-medium">{label}</span>
-      </div>
-      <p className="mt-2 text-gray-800 font-semibold break-words">
-        {value || "-"}
-      </p>
-    </div>
-  );
-
-  return (
-    <div className="mt-10 w-full">
-      <div className="mb-6">
-        <h2 className="text-3xl font-semibold text-gray-800 text-heading">
-          Personal Information
-        </h2>
-        <p className="text-gray-500 text-lg">
-          Your personal and medical details
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <InfoCard icon={User} label="Name" value={profile.name} />
-        <InfoCard icon={Mail} label="Email" value={profile.email} />
-        <InfoCard icon={Calendar} label="Age" value={profile.age} />
-        <InfoCard icon={User} label="Gender" value={profile.gender} />
-        <InfoCard icon={Phone} label="Phone" value={profile.phone} />
-        <InfoCard
-          icon={HeartPulse}
-          label="Medications"
-          value={
-            profile.medications?.length ? profile.medications.join(", ") : "-"
-          }
-        />
-        <InfoCard
-          icon={HeartPulse}
-          label="Medical History"
-          value={
-            profile.medicalHistory?.length
-              ? profile.medicalHistory.join(", ")
-              : "-"
-          }
-        />
-      </div>
-    </div>
-  );
+    if (!token) return; const controller = new AbortController(); setLoading(true); setError("");
+    fetchJson(`${API_BASE_URL}/api/users/user-profile`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }).then(({data}) => { if (!data) throw new Error("We couldn't load your personal details."); if (!controller.signal.aborted) setProfile(data); }).catch((error) => { if (!controller.signal.aborted) setError(error.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [token,attempt]);
+  if (loading) return <StatePanel loading title="Loading your details" />;
+  if (error) return <StatePanel title="We couldn't load your details" description={error} onRetry={() => setAttempt((value) => value + 1)} />;
+  if (!profile) return null;
+  return <section><p className="eyebrow">Your personal information</p><h2 className="text-3xl mb-7">A little about you.</h2><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">{[[User,"Name",profile.name],[Mail,"Email",profile.email],[Calendar,"Age",profile.age],[User,"Gender",profile.gender],[Phone,"Phone",profile.phone],[HeartPulse,"Medications",medical(profile.medications)],[HeartPulse,"Medical history",medical(profile.medicalHistory)]].map(([icon,label,value]) => <article className="surface" key={label}><p className="flex items-center gap-2 text-xs text-gray-500">{createElement(icon,{size:16})}{label}</p><p className="mt-4 text-sm font-semibold break-words">{value || "Not provided"}</p></article>)}</div></section>;
 }

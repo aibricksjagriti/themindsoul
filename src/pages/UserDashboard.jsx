@@ -9,10 +9,10 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState("Appointments");
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="dashboard-page">
       <ProfileHeader />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="container dashboard-body">
         <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <div className="mt-8">

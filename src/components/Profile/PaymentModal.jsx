@@ -1,9 +1,10 @@
+import { API_BASE_URL } from "../../api/apiConfig.js";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { FiX } from "react-icons/fi";
 
 const BASE_URL =
-  "https://mindsoul-backend-772700176760.asia-south1.run.app/api";
+  `${API_BASE_URL}/api`;
 
 export default function PaymentModal({
   counsellor,

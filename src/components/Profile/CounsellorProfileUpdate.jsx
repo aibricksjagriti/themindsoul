@@ -1,7 +1,13 @@
+import { API_BASE_URL } from "../../api/apiConfig.js";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 export default function CounsellorProfileUpdate() {
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [currentPrice, setCurrentPrice] = useState(null);
   const [formData, setFormData] = useState({
     email: "",
     firstName: "",
@@ -84,12 +90,13 @@ export default function CounsellorProfileUpdate() {
     const fetchProfile = async () => {
       try {
         const res = await axios.get(
-          `https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/${counsellorId}`,
+          `${API_BASE_URL}/api/counsellor/${counsellorId}`,
           { withCredentials: true }
         );
 
         const counsellor = res.data.counsellor; // <-- use this
-        console.log("Fetched counsellor data:", counsellor);
+        setCurrentPrice(counsellor.sessionPrice);
+
 
         setFormData({
           email: counsellor.email || "",
@@ -100,7 +107,7 @@ export default function CounsellorProfileUpdate() {
           expertise: counsellor.expertise || [],
           experience: counsellor.experience || "",
           languages: counsellor.languages || [],
-          sessionPrice: counsellor.sessionPrice || "",
+          sessionPrice: "",
           focusAreas: counsellor.focusAreas || [],
           slotDuration: counsellor.slotDuration || "",
           workingHours: counsellor.workingHours || {
@@ -113,7 +120,7 @@ export default function CounsellorProfileUpdate() {
         });
       } catch (err) {
         console.error("Error fetching profile:", err.response?.data || err);
-        alert("Failed to load profile data.");
+        setSaveError("We couldn't load your profile. Please refresh before saving changes.");
       }
     };
 
@@ -124,6 +131,8 @@ export default function CounsellorProfileUpdate() {
   // SUBMIT HANDLER (ONLY SEND FILLED/UPDATED FIELDS)
   // -------------------------------------------
   const handleSubmit = async () => {
+    if (saving) return;
+    setSaving(true); setFeedback(""); setSaveError("");
     try {
       const apiBody = new FormData();
 
@@ -172,7 +181,7 @@ export default function CounsellorProfileUpdate() {
         apiBody.append("profileImage", formData.profileImage);
 
       const response = await axios.post(
-        "https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/update-profile",
+        `${API_BASE_URL}/api/counsellor/update-profile`,
         apiBody,
         {
           withCredentials: true,
@@ -180,32 +189,40 @@ export default function CounsellorProfileUpdate() {
         }
       );
 
-      alert("Profile updated successfully!");
-      console.log("Update response:", response.data);
+      setFeedback("Your profile has been updated.");
+      if (response.data.counsellor?.profileData?.sessionPrice) setCurrentPrice(response.data.counsellor.profileData.sessionPrice);
+      setFormData((old) => ({ ...old, sessionPrice: "" }));
+
     } catch (err) {
       console.error("Update error:", err.response?.data || err);
-      alert(err.response?.data?.message || "Update failed");
+      setSaveError(err.response?.data?.message || "We couldn't save your profile. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-2xl p-8 mt-36 mb-24">
+    <div className="profile-editor bg-white p-8">
       {/* <a href="/counsellor-dashboard">
         <button className="bg-primary px-6 py-3 mb-12 text-light rounded-lg text-xl cursor-pointer">
           Go To Dashboard
         </button>
       </a> */}
-      <h2 className="text-4xl font-bold text-gray-800 mb-6 font-heading">
-        Update Counsellor Profile
+      <Link to="/counsellor-dashboard" className="text-link mb-6">Back to my dashboard</Link>
+      <p className="eyebrow">Your professional space</p>
+      <h2 className="text-4xl font-bold text-gray-800 mb-4 font-heading">
+        Help people get to know you.
       </h2>
+      <p className="text-sm text-gray-500 mb-8">Share your approach, experience, and availability. These details appear on your counsellor profile.</p>
 
       {/* FORM UI STARTS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-body">
         {/* Email */}
         <div>
-          <label className="font-medium">Email</label>
-          <input
+          <label className="font-medium" htmlFor="profile-field-1">Email</label>
+          <input id="profile-field-1"
             type="email"
+            readOnly
             className="w-full p-3 border rounded-lg mt-1"
             value={formData.email}
             onChange={(e) =>
@@ -216,8 +233,8 @@ export default function CounsellorProfileUpdate() {
 
         {/* Phone */}
         <div>
-          <label className="font-medium">Phone Number</label>
-          <input
+          <label className="font-medium" htmlFor="profile-field-2">Phone Number</label>
+          <input id="profile-field-2"
             type="text"
             className="w-full p-3 border rounded-lg mt-1"
             value={formData.phoneNumber}
@@ -229,8 +246,8 @@ export default function CounsellorProfileUpdate() {
 
         {/* First Name */}
         <div>
-          <label className="font-medium">First Name</label>
-          <input
+          <label className="font-medium" htmlFor="profile-field-3">First Name</label>
+          <input id="profile-field-3"
             type="text"
             className="w-full p-3 border rounded-lg mt-1"
             value={formData.firstName}
@@ -242,8 +259,8 @@ export default function CounsellorProfileUpdate() {
 
         {/* Last Name */}
         <div>
-          <label className="font-medium">Last Name</label>
-          <input
+          <label className="font-medium" htmlFor="profile-field-4">Last Name</label>
+          <input id="profile-field-4"
             type="text"
             className="w-full p-3 border rounded-lg mt-1"
             value={formData.lastName}
@@ -255,8 +272,8 @@ export default function CounsellorProfileUpdate() {
 
         {/* Experience */}
         <div>
-          <label className="font-medium">Experience</label>
-          <input
+          <label className="font-medium" htmlFor="profile-field-5">Experience</label>
+          <input id="profile-field-5"
             type="text"
             placeholder="e.g. 5 years"
             className="w-full p-3 border rounded-lg mt-1"
@@ -269,8 +286,9 @@ export default function CounsellorProfileUpdate() {
 
         {/* Session Price */}
         <div>
-          <label className="font-medium">Session Price (₹)</label>
-          <input
+          <label className="font-medium" htmlFor="profile-field-6">New session fee (before platform fee)</label>
+          <p className="text-xs text-gray-500 mt-2">Current session total: {currentPrice ? `₹${currentPrice}` : "Not set"}. Leave this blank to keep your current fee. A 20% platform fee is added to a new fee.</p>
+          <input id="profile-field-6"
             type="number"
             className="w-full p-3 border rounded-lg mt-1"
             value={formData.sessionPrice}
@@ -283,8 +301,8 @@ export default function CounsellorProfileUpdate() {
 
       {/* Description */}
       <div className="mt-6">
-        <label className="font-medium">Short Description</label>
-        <textarea
+        <label className="font-medium" htmlFor="profile-field-7">Short Description</label>
+        <textarea id="profile-field-7"
           rows="4"
           className="w-full p-3 border rounded-lg mt-1"
           value={formData.description}
@@ -296,7 +314,7 @@ export default function CounsellorProfileUpdate() {
 
       {/* Expertise */}
       <div className="mt-6">
-        <label className="font-medium">Expertise</label>
+        <label className="font-medium" htmlFor="profile-field-8">Expertise</label>
         <div className="flex flex-wrap gap-3 mt-2">
           {expertiseOptions.map((exp) => (
             <button
@@ -364,7 +382,7 @@ export default function CounsellorProfileUpdate() {
                 {slot.charAt(0).toUpperCase() + slot.slice(1)}
               </p>
               <div className="flex gap-3">
-                <input
+                <input id="profile-field-8"
                   type="time"
                   className="p-3 border rounded-lg"
                   value={formData.workingHours[slot]?.start || ""}
@@ -426,8 +444,8 @@ export default function CounsellorProfileUpdate() {
 
       {/* Slot Duration */}
       <div className="mt-6">
-        <label className="font-medium">Slot Duration (Minutes)</label>
-        <input
+        <label className="font-medium" htmlFor="profile-field-9">Slot Duration (Minutes)</label>
+        <input id="profile-field-9"
           type="number"
           className="w-full p-3 border rounded-lg mt-1"
           value={formData.slotDuration}
@@ -439,8 +457,8 @@ export default function CounsellorProfileUpdate() {
 
       {/* Profile Image */}
       <div className="mt-6">
-        <label className="font-medium">Profile Image</label>
-        <input
+        <label className="font-medium" htmlFor="profile-field-10">Profile Image</label>
+        <input id="profile-field-10"
           type="file"
           className="w-full p-3 border rounded-lg mt-1"
           onChange={(e) =>
@@ -450,11 +468,14 @@ export default function CounsellorProfileUpdate() {
       </div>
 
       {/* Submit Button */}
+      {feedback && <p role="status" className="form-success mt-8">{feedback}</p>}
+      {saveError && <p role="alert" className="form-error mt-8">{saveError}</p>}
       <button
         onClick={handleSubmit}
-        className="mt-8 bg-primary text-white px-8 py-3 rounded-xl font-semibold cursor-pointer"
+        disabled={saving}
+        className="button button-primary mt-8"
       >
-        Save Changes
+        {saving ? "Saving your profile..." : "Save my profile"}
       </button>
     </div>
   );

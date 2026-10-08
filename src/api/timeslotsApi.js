@@ -1,7 +1,8 @@
+import { API_BASE_URL } from "./apiConfig.js";
 import axios from "axios";
 
 const BASE_URL =
-  "https://mindsoul-backend-772700176760.asia-south1.run.app/api/timeslots";
+  `${API_BASE_URL}/api/timeslots`;
 
 // 1. Fetch slots for selected date
 export const fetchSlots = async (counsellorId, date) => {

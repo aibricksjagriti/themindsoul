@@ -1,261 +1,31 @@
-import React, { useState, useEffect } from "react";
-import { Star, CheckCircle, ChevronDown, Briefcase } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
+import useCounsellors from "../../hooks/useCounsellors";
+import PageHeading from "../ui/PageHeading";
+import StatePanel from "../ui/StatePanel";
+import CounsellorCard from "../ui/CounsellorCard";
 
+const options = { expertise: ["Therapist", "Clinical Psychologist", "Child Specialist", "Counselling Psychologist"], languages: ["English", "Hindi", "Kannada", "Marathi", "Tamil", "Telugu", "Punjabi", "French"] };
+const list = (value) => Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
 export default function Counsellors() {
-  const [allCounsellors, setAllCounsellors] = useState([]);
-  const [counsellors, setCounsellors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  const [selectedLang, setSelectedLang] = useState({
-    Hindi: false,
-    English: false,
-    Kannada: false,
-    Marathi: false,
-    Tamil: false,
-    Telugu: false,
-    Punjabi: false,
-    French: false,
-  });
-
-  const [selectedExpertise, setSelectedExpertise] = useState({
-    Therapist: false,
-    "Clinical Psychologist": false,
-    "Child Specialist": false,
-    "Counselling Psychologist": false,
-  });
-
-  // ---------------- TOGGLES ----------------
-  const toggleLang = (lang) => {
-    setSelectedLang((prev) => ({ ...prev, [lang]: !prev[lang] }));
-  };
-
-  const toggleExpertise = (exp) => {
-    setSelectedExpertise((prev) => ({ ...prev, [exp]: !prev[exp] }));
-  };
-
-  // ---------------- CLEAR FILTERS ----------------
-  const clearAllFilters = () => {
-    setSelectedLang({
-      Hindi: false,
-      English: false,
-      Kannada: false,
-      Marathi: false,
-      Tamil: false,
-      Telugu: false,
-      Punjabi: false,
-      French: false,
-    });
-
-    setSelectedExpertise({
-      Therapist: false,
-      "Clinical Psychologist": false,
-      "Child Specialist": false,
-      "Counselling Psychologist": false,
-    });
-
-    setCounsellors(allCounsellors);
-  };
-
-  const filterCount = [
-    ...Object.values(selectedLang),
-    ...Object.values(selectedExpertise),
-  ].filter(Boolean).length;
-
-  // ---------------- FETCH COUNSELLORS ----------------
-  useEffect(() => {
-    const fetchCounsellors = async () => {
-      try {
-        const res = await fetch(
-          "https://mindsoul-backend-772700176760.asia-south1.run.app/api/counsellor/list"
-        );
-        const data = await res.json();
-
-        if (data?.counsellors) {
-          setAllCounsellors(data.counsellors);
-          setCounsellors(data.counsellors);
-        }
-      } catch (err) {
-        console.error("Fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCounsellors();
-  }, []);
-
-  // ---------------- APPLY FILTERS (CASE INSENSITIVE) ----------------
-  useEffect(() => {
-    let filtered = allCounsellors;
-
-    const activeLangs = Object.keys(selectedLang)
-      .filter((l) => selectedLang[l])
-      .map((l) => l.toLowerCase().trim());
-
-    if (activeLangs.length > 0) {
-      filtered = filtered.filter((c) =>
-        c.languages?.some((lang) =>
-          activeLangs.includes(lang.toLowerCase().trim())
-        )
-      );
-    }
-
-    const activeExpertise = Object.keys(selectedExpertise)
-      .filter((e) => selectedExpertise[e])
-      .map((e) => e.toLowerCase().trim());
-
-    if (activeExpertise.length > 0) {
-      filtered = filtered.filter((c) =>
-        c.expertise?.some((exp) =>
-          activeExpertise.includes(exp.toLowerCase().trim())
-        )
-      );
-    }
-
-    setCounsellors(filtered);
-  }, [selectedLang, selectedExpertise, allCounsellors]);
-
-  // ---------------- LOADING ----------------
-  if (loading) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center">
-        <p className="text-2xl font-semibold text-gray-600">Loading...</p>
-      </div>
-    );
-  }
-
-  const openProfile = (c) => {
-    navigate(`/counsellor/${c.counsellorId}`, { state: c });
-  };
-
-  // ---------------- UI ----------------
-  return (
-    <div className="w-full bg-gray-50 mt-30 py-10">
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 p-4">
-        {/* FILTER SIDEBAR */}
-        <div className="bg-white p-4 rounded-xl shadow-sm h-fit sticky top-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Filters</h2>
-            <span className="text-xs bg-primary text-white px-2 py-1 rounded-full">
-              {filterCount}
-            </span>
-          </div>
-
-          {/* Expertise */}
-          <div className="mt-4">
-            <label className="font-semibold flex justify-between">
-              Expertise <ChevronDown size={18} />
-            </label>
-            {Object.keys(selectedExpertise).map((exp) => (
-              <label key={exp} className="flex gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  checked={selectedExpertise[exp]}
-                  onChange={() => toggleExpertise(exp)}
-                />
-                {exp}
-              </label>
-            ))}
-          </div>
-
-          {/* Languages */}
-          <div className="mt-4">
-            <label className="font-semibold flex justify-between">
-              Languages <ChevronDown size={18} />
-            </label>
-            {Object.keys(selectedLang).map((lang) => (
-              <label key={lang} className="flex gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  checked={selectedLang[lang]}
-                  onChange={() => toggleLang(lang)}
-                />
-                {lang}
-              </label>
-            ))}
-          </div>
-
-          <button
-            onClick={clearAllFilters}
-            className="w-full mt-4 bg-primary text-light py-2 rounded-lg"
-          >
-            Clear All Filters
-          </button>
-        </div>
-
-        {/* COUNSELLORS / NO DATA UI */}
-        <div className="md:col-span-3">
-          {counsellors.length === 0 ? (
-            <div className="w-full h-[300px] flex flex-col items-center justify-center bg-light rounded-xl shadow">
-              <p className="text-2xl font-semibold text-textDark">
-                No counsellors found
-              </p>
-              <p className="text-gray-500 mt-2">
-                Try adjusting or clearing the filters
-              </p>
-              <button
-                onClick={clearAllFilters}
-                className="mt-4 px-6 py-2 bg-primary text-light rounded-lg"
-              >
-                Clear Filters
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {counsellors.map((c) => (
-                <div
-                  key={c.counsellorId}
-                  onClick={() => openProfile(c)}
-                  className="bg-white rounded-xl shadow hover:shadow-lg cursor-pointer"
-                >
-                  <img
-                    src={c.imageUrl}
-                    alt={c.firstName}
-                    className="h-52 w-full object-cover"
-                    onError={(e) => (e.target.src = "/fallback.jpg")}
-                  />
-
-                  <div className="p-4">
-                    <div className="flex items-center gap-1">
-                      <Star size={16} className="text-yellow-500" />
-                      <span>{c.rating || "4.0"}</span>
-                    </div>
-
-                    <h3 className="text-xl font-semibold">
-                      {c.firstName} {c.lastName}
-                    </h3>
-
-                    <div className="flex items-center gap-1 text-green-600">
-                      <CheckCircle size={16} /> Verified
-                    </div>
-
-                    <div className="flex items-center gap-1 mt-1">
-                      <Briefcase size={16} />
-                      {c.experience || "Experience N/A"}
-                    </div>
-
-                    <p className="text-gray-600 mt-1">
-                      {c.languages
-                        ?.map(
-                          (l) =>
-                            l.trim().charAt(0).toUpperCase() +
-                            l.trim().slice(1).toLowerCase()
-                        )
-                        .join(" | ")}
-                    </p>
-
-                    <p className="mt-2 font-semibold">
-                      ₹{c.sessionPrice || "1500"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  const { counsellors, loading, error, retry } = useCounsellors();
+  const [filters, setFilters] = useState({ expertise: [], languages: [] });
+  const [query, setQuery] = useState("");
+  const toggle = (field, value) => setFilters((old) => ({ ...old, [field]: old[field].includes(value) ? old[field].filter((item) => item !== value) : [...old[field], value] }));
+  const filtered = useMemo(() => counsellors.filter((c) => {
+    const matches = Object.keys(filters).every((field) => !filters[field].length || list(c[field]).some((value) => filters[field].some((selected) => selected.toLowerCase() === String(value).trim().toLowerCase())));
+    const text = [c.firstName,c.lastName,...list(c.expertise),...list(c.languages)].join(" ").toLowerCase();
+    return matches && text.includes(query.trim().toLowerCase());
+  }), [counsellors, filters, query]);
+  const count = filters.expertise.length + filters.languages.length;
+  const reset = () => { setFilters({ expertise: [], languages: [] }); setQuery(""); };
+  return <div><PageHeading eyebrow="Find your person" title="Someone to listen. A space to grow." description="Explore our counsellors and find someone whose experience, language, and approach feel right for you." />
+    <div className="container directory-layout"><aside className="surface filter-panel"><div className="flex justify-between items-center"><h2 className="flex items-center gap-2"><SlidersHorizontal size={16} /> Refine your search</h2>{count > 0 && <button className="text-link" onClick={reset}>Clear</button>}</div>
+      {Object.entries(options).map(([field,values]) => <fieldset key={field}><legend>{field === "expertise" ? "AREA OF EXPERTISE" : "LANGUAGE"}</legend>{values.map((value) => <label key={value}><input type="checkbox" checked={filters[field].includes(value)} onChange={() => toggle(field,value)} />{value}</label>)}</fieldset>)}
+      <p className="mt-7 text-xs text-gray-500">Not sure where to start? <a className="text-link" href="/contacts">Talk to our team.</a></p>
+    </aside><div><div className="directory-toolbar"><p aria-live="polite">{loading ? "Loading counsellors..." : `${filtered.length} counsellor${filtered.length === 1 ? "" : "s"} to explore`}</p><div className="search-field"><Search size={17} /><input aria-label="Search counsellors by name, expertise or language" placeholder="Name, expertise, or language" value={query} onChange={(event) => setQuery(event.target.value)} /></div></div>
+      {count > 0 && <div className="flex flex-wrap gap-2 mb-5">{Object.entries(filters).flatMap(([field,values]) => values.map((value) => <button className="button button-secondary !min-h-8 !py-1 !px-3 !text-xs" key={value} onClick={() => toggle(field,value)} aria-label={`Remove ${value} filter`}>{value}<X size={12} /></button>))}</div>}
+      {loading ? <StatePanel loading title="Finding your support team" /> : error ? <StatePanel title="We couldn't load the directory" description={error} onRetry={retry} /> : !filtered.length ? <StatePanel title="Let's broaden the search" description="Try a different name or remove a filter to find more counsellors." onRetry={reset} /> : <div className="counsellor-grid">{filtered.map((c) => <CounsellorCard key={c.counsellorId} counsellor={c} />)}</div>}
+    </div></div>
+  </div>;
 }
