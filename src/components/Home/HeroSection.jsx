@@ -9,6 +9,6 @@ export default function HeroSection() {
       <div className="hero-actions"><Link to="/counsellors" className="button button-primary">Find your counsellor <ArrowUpRight size={17} /></Link><Link to="/about" className="text-link">Get to know us <ArrowUpRight size={15} /></Link></div>
       <p className="hero-note"><ShieldCheck size={16} /> A caring space. A conversation that starts with you.</p>
     </div>
-    <div className="hero-visual"><Wellness3D className="hero-wellness-3d" /><img src="/home-1.jpg" alt="A woman taking a peaceful moment for herself" className="hero-photo" fetchPriority="high" /><div className="hero-caption"><span className="caption-icon"><Heart size={22} strokeWidth={1.5} /></span><div><strong>Room to be yourself.</strong><p>Support for wherever you are in life.</p></div></div></div>
+    <div className="hero-visual"><Wellness3D className="hero-wellness-3d" /><img src="/home-1-960.webp" srcSet="/home-1-640.webp 640w, /home-1-960.webp 960w, /home-1-1440.webp 1440w" sizes="(max-width: 850px) 100vw, 50vw" alt="A woman taking a peaceful moment for herself" className="hero-photo" fetchPriority="high" decoding="async" /><div className="hero-caption"><span className="caption-icon"><Heart size={22} strokeWidth={1.5} /></span><div><strong>Room to be yourself.</strong><p>Support for wherever you are in life.</p></div></div></div>
   </div></section>;
 }
