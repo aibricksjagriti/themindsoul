@@ -14,6 +14,7 @@ export const fetchJson = async (url, options = {}) => {
     if (!response.ok || data.success === false) {
       const error = new Error(data.message || "Request failed. Please try again.");
       error.status = response.status;
+      error.code = data.code;
       throw error;
     }
     return data;

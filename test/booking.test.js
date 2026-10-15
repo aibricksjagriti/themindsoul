@@ -89,6 +89,10 @@ async function checkoutHarness(overrides = {}) {
     setAppointmentData: (value) => { state.appointment = value; },
     setIsBooked: (value) => { state.confirmed = value; },
     setPendingAppointment: (value) => { context.pendingAppointment = value; },
+    setSelectedSlot: value => { context.selectedSlot = value; },
+    setSelectionConfirmed: value => { state.selectionConfirmed = value; },
+    setSlotAttempt: () => { state.timesRefreshed = true; },
+    setAvailabilityAttempt: () => { state.datesRefreshed = true; },
     setAwaitingConfirmation: (value) => { context.awaitingConfirmation = value; },
     loadRazorpayScript: async () => true,
     fetchJson: async (url) => {
@@ -144,4 +148,22 @@ test("successful verification alone does not display appointment confirmation", 
   await callback;
   assert.equal(harness.state.confirmed, true);
   assert.equal(harness.state.loader, false);
+});
+
+test("expired checkout clears the pending booking and refreshes availability before another attempt", async () => {
+  const harness = await checkoutHarness({ pendingAppointment: { appointmentId: "expired" }, fetchJson: async () => { throw Object.assign(new Error("Please choose another time"), { code: "BOOKING_EXPIRED" }); } });
+  await harness.handlePaymentAndBooking();
+  assert.equal(harness.context.pendingAppointment, null);
+  assert.equal(harness.context.selectedSlot, null);
+  assert.equal(harness.state.datesRefreshed, true);
+  assert.equal(harness.state.timesRefreshed, true);
+  assert.equal(harness.state.confirmed, false);
+});
+
+test("already-paid checkout switches to status recovery without clearing the booking", async () => {
+  const harness = await checkoutHarness({ pendingAppointment: { appointmentId: "paid" }, fetchJson: async () => { throw Object.assign(new Error("Check status"), { code: "PAYMENT_ALREADY_COMPLETED" }); } });
+  await harness.handlePaymentAndBooking();
+  assert.equal(harness.context.awaitingConfirmation, true);
+  assert.equal(harness.context.pendingAppointment.appointmentId, "paid");
+  assert.equal(harness.state.confirmed, false);
 });
