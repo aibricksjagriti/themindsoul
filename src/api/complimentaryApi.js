@@ -7,4 +7,6 @@ export const createComplimentaryBooking = (payload, token) => fetchJson(`${base}
   method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload),
 });
 export const complimentaryRequestStatus = (requestId, token) => fetchJson(`${base}/api/complimentary/requests/${encodeURIComponent(requestId)}`, { headers: { Authorization: `Bearer ${token}` } });
-export const complimentaryHostLink = (appointmentId) => fetchJson(`${base}/api/complimentary/appointments/${encodeURIComponent(appointmentId)}/host`, { credentials: "include" });
+export const complimentaryHostLink = (appointmentId) => fetchJson(`${base}/api/complimentary/appointments/${encodeURIComponent(appointmentId)}/host`, { credentials: "include", headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` } });
+export const paidHostLink = appointmentId => fetchJson(`${API_BASE_URL}/api/appointment/${encodeURIComponent(appointmentId)}/host`, { credentials: "include", headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` } });
+export const retryBookingEmail = (appointmentId, complimentary) => fetchJson(`${complimentary ? base + "/api/complimentary/appointments" : API_BASE_URL + "/api/appointment"}/${encodeURIComponent(appointmentId)}/notifications/retry`, { method: "POST", credentials: "include", headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` } });

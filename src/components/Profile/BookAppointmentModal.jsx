@@ -249,6 +249,11 @@ export default function BookAppointmentModal({
       });
       checkout.open(); checkoutOpened = true;
     } catch (error) {
+      if (error.code === "PAYMENT_ALREADY_COMPLETED") setAwaitingConfirmation(true);
+      if (error.code === "BOOKING_EXPIRED") {
+        setPendingAppointment(null); setSelectedSlot(null); setSelectionConfirmed(false);
+        setSlotAttempt(value => value + 1); setAvailabilityAttempt(value => value + 1);
+      }
       setBookingError(error.message || "Something went wrong");
     } finally {
       if (!checkoutOpened) { setProcessingPayment(false); processingRef.current = false; }
